@@ -1,0 +1,303 @@
+:root {
+    --primary-color: #4361ee;
+    --secondary-color: #3f37c9;
+    --success-color: #4caf50;
+    --bg-color: #f8f9fa;
+    --card-bg: #ffffff;
+    --text-color: #333333;
+    --border-color: #e0e0e0;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --radius: 8px;
+    --transition: all 0.3s ease;
+}
+
+/* Ensure the body and html take full height */
+html, body {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2rem;
+}
+
+.subtitle {
+    font-weight: 300;
+    opacity: 0.9;
+    margin-top: 0.5rem;
+}
+
+/* Adjust the container to fill the available space */
+.container {
+    flex: 1; /* Allow the container to grow and fill the space */
+    display: flex;
+    gap: 2rem;
+    padding: 0 1rem;
+    box-sizing: border-box;
+    margin-top: 1.5rem; /* Center the container */
+    margin-bottom: 0 auto; /* Center the container */
+    min-height: 0; /* Prevent overflow issues */
+}
+
+.editor-container, .output-container {
+    flex: 1; /* Take equal space */
+    min-width: 0; /* Prevent content from forcing the container to grow */
+    max-width: 50%; /* Ensure both containers take equal width */
+    overflow: hidden; /* Prevent content from overflowing */
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 200px); /* Fill height minus header and footer */
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    box-sizing: border-box;
+}
+
+/* Adjust textarea and output-wrapper to fill the container */
+textarea, .output-wrapper {
+    flex: 1; /* Allow them to grow and fill the container */
+    min-height: 0; /* Prevent overflow issues */
+    height: 100%; /* Fill the container height */
+    width: 100%; /* Fill the container width */
+    box-sizing: border-box;
+}
+
+/* Ensure textarea and pre handle overflow consistently */
+textarea, pre {
+    overflow: auto; /* Allow both horizontal and vertical scrolling */
+    white-space: pre-wrap; /* Preserve whitespace and wrap text */
+    word-wrap: break-word; /* Break long words if necessary */
+    box-sizing: border-box; /* Include padding in width/height calculations */
+}
+
+/* Adjust for smaller screens */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column; /* Stack vertically on smaller screens */
+    }
+
+    .editor-container, .output-container {
+        max-width: 100%; /* Full width for stacked layout */
+    }
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+h2 {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.button-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+button {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition);
+}
+
+button:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+button.copy-btn {
+    background: #6c757d;
+}
+
+button.copy-btn:hover {
+    background: #5a6268;
+}
+
+textarea {
+    width: 100%;
+    height: 100%; /* Fill the container height */
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.95rem;
+    resize: vertical;
+    line-height: 1.5;
+    transition: var(--transition);
+    white-space: pre-wrap;      /* Changed from nowrap to pre-wrap */
+    overflow-wrap: break-word;  /* Changed from normal to break-word */
+    overflow-x: hidden;         /* Changed from auto to hidden */
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.3);
+}
+
+.output-wrapper {
+    height: 100%; /* Fill the container height */
+    overflow: auto;
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    background: #2d2d2d;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+pre {
+    overflow: auto; /* Allow scrolling for long content */
+    white-space: pre-wrap; /* Wrap text to prevent horizontal scrolling */
+    word-wrap: break-word; /* Break long words if necessary */
+    height: 100%; /* Fill the container height */
+    box-sizing: border-box; /* Include padding in width/height calculations */
+    margin: 0;
+    padding: 1rem;
+    background: transparent;
+    border: none;
+    overflow: visible;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+pre code {
+    white-space: pre-wrap !important;       /* Force line wrapping */
+    word-break: break-all;                 /* Break anywhere if needed */
+    word-wrap: break-word;                 /* Legacy property for IE */
+    overflow-wrap: anywhere;               /* Modern property */
+    display: inline-block;
+    width: 100%;                           /* Take full width */
+    box-sizing: border-box;                /* Include padding in width calculation */
+}
+
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #4CAF50;
+    color: white;
+    padding: 16px;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+.toast.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.toast-error {
+    background-color: #f44336;
+}
+
+.toast-success {
+    background-color: #4CAF50;
+}
+
+.toast i {
+    font-size: 20px;
+}
+
+/* Footer adjustments */
+footer {
+    text-align: center;
+    padding: 0;
+    background: #f1f1f1;
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: auto; /* Push footer to the bottom */
+    flex-shrink: 0; /* Prevent footer from shrinking */
+}
+
+.dark-mode-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.2);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    z-index: 100;
+}
+
+.dark-mode-toggle:hover {
+    background: rgba(0,0,0,0.3);
+}
+
+body.dark-mode {
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --text-color: #e0e0e0;
+    --border-color: #333333;
+}
+
+body.dark-mode .dark-mode-toggle {
+    background: rgba(255,255,255,0.2);
+    color: #121212;
+}
+
+body.dark-mode textarea {
+    background: #2d2d2d;
+    color: #e0e0e0;
+}
+
+body.dark-mode footer {
+    background: #1a1a1a;
+    color: #999;
+}

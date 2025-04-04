@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSONata Formatter</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+
+    <!-- Load Prism.js first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
+    <!-- Load your main.js after Prism.js -->
+    <script src="scripts/main.js"></script>
+    <link href="styles/main.css" rel="stylesheet" />
+</head>
+
+<body>
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <header>
+        <h1>JSONata Formatter</h1>
+        <div class="subtitle">Format and beautify your JSONata expressions</div>
+    </header>
+
+    <div class="container">
+        <div class="editor-container">
+            <div class="section-header">
+                <h2>Input</h2>
+                <div class="button-group">
+                    <button onclick="clearInput()">
+                        <i class="fas fa-trash-alt"></i> Clear
+                    </button>
+                    <button onclick="formatJSONata()">
+                        <i class="fas fa-magic"></i> Format
+                    </button>
+                </div>
+            </div>
+            <textarea id="input-box" placeholder="Paste your JSONata code here..."></textarea>
+        </div>
+
+        <div class="output-container">
+            <div class="section-header">
+                <h2>Formatted Output</h2>
+                <div class="button-group">
+                    <button class="copy-btn" onclick="copyOutput()">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+            </div>
+            <div class="output-wrapper">
+                <pre><code id="output-box" class="language-json"></code></pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-message">Copied to clipboard!</span>
+    </div>
+
+    <footer>
+        JSONata Formatter - A tool for formatting and beautifying JSONata expressions
+    </footer>
+</body>
+
+</html>
