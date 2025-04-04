@@ -280,6 +280,28 @@ footer {
     background: rgba(0,0,0,0.3);
 }
 
+.jsonata-website-link {
+    position: fixed;
+    top: 10px;
+    right: 60px; /* Adjusted to be next to the dark mode toggle */
+    background: rgba(0,0,0,0.2);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    z-index: 100;
+}
+
+.jsonata-website-link:hover {
+    background: rgba(0,0,0,0.3);
+}
+
 body.dark-mode {
     --bg-color: #121212;
     --card-bg: #1e1e1e;
