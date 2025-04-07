@@ -72,7 +72,8 @@ function jsonataFormatter(code) {
         switch (currentChar) {
             case '(': formatted += (/[a-zA-Z0-9_$]/.test(previousChar) ? '' : '') + currentChar; if (nextChar !== ')') { indentLevel++; addNewlineIndent(); } break;
             case '[': formatted += currentChar; if (/[a-zA-Z0-9_$]/.test(previousChar)) inFilterExpression = true; else { indentLevel++; addNewlineIndent(); } break;
-            case '{': formatted += (previousChar === '.' ? '' : currentChar); indentLevel++; addNewlineIndent(); break;
+            //case '{': formatted += (previousChar === '.' ? '{' : currentChar); indentLevel++; addNewlineIndent(); break;
+            case '{': formatted += currentChar; indentLevel++; addNewlineIndent(); break;
             case ')': if (previousChar !== '(') { if (indentLevel > 0) indentLevel--; addNewlineIndent(); } formatted += currentChar; break;
             case ']': formatted += currentChar; if (!inFilterExpression) { indentLevel--; addNewlineIndent(); } else inFilterExpression = false; break;
             case '}': indentLevel--; addNewlineIndent(); formatted += currentChar; break;
