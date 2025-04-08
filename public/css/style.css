@@ -1,0 +1,514 @@
+:root {
+    --primary-color: #2962ff;
+    --secondary-color: #455a64;
+    --background-color: #121212;
+    --surface-color: #1e1e1e;
+    --text-color: #e0e0e0;
+    --border-color: #424242;
+    --success-color: #2ecc71;
+    --error-color: #e74c3c;
+    --warning-color: #f39c12;
+    --info-color: #3498db;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Main container styles */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    overflow-x: hidden;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+header {
+    background-color: var(--surface-color);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 60px;
+}
+
+header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.container {
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 60px - 34px); /* Viewport height - header - footer */
+}
+
+/* Critical editor layout styles */
+.editor-container {
+    display: flex;
+    width: 100%;
+    height: 70vh;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Editor column styles */
+.editor-column {
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    transition: width 0.05s;
+    /* Remove flex: 1 as it conflicts with explicit width settings */
+}
+
+#input-column {
+    width: 50%; /* Initial width */
+}
+
+#output-column {
+    width: 50%; /* Initial width */
+}
+
+/* Essential divider styles */
+.editor-divider {
+    width: 8px;
+    background-color: #444;
+    cursor: col-resize;
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0; /* Prevent divider from shrinking */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+
+.editor-divider:hover,
+.editor-divider.active {
+    background-color: #666;
+}
+
+/* Visual indicator on divider */
+.editor-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 30px;
+    width: 2px;
+    background-color: #aaa;
+}
+
+.editor-divider::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 30px;
+    background-color: #888;
+    border-radius: 2px;
+}
+
+/* Monaco editor sizing */
+.monaco-editor {
+    width: 100%;
+    height: calc(100% - 40px); /* Adjust based on your header height */
+    position: relative !important;
+    overflow: hidden;
+}
+
+/* Editor headers */
+.editor-header {
+    height: 40px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #333;
+    color: #fff;
+}
+
+#validation-panel {
+    border-top: 1px solid var(--border-color);
+    background-color: var(--surface-color);
+    max-height: 150px;
+    overflow: auto;
+    transition: max-height 0.3s ease;
+}
+
+.validation-header {
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#validation-content {
+    padding: 0.5rem 1rem;
+    white-space: pre-wrap;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.error {
+    color: var(--error-color);
+}
+
+.success {
+    color: var(--success-color);
+}
+
+.warning {
+    color: var(--warning-color);
+}
+
+.examples {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.primary-btn:hover {
+    background-color: #1e4cff;
+}
+
+.secondary-btn {
+    background-color: transparent;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.secondary-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.icon-btn {
+    background-color: transparent;
+    color: var(--text-color);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.example-btn {
+    background-color: transparent;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background-color 0.2s;
+}
+
+.example-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+footer {
+    padding: 0.75rem 1rem;
+    background-color: var(--surface-color);
+    border-top: 1px solid var(--border-color);
+}
+
+.footer-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.footer-content a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.footer-content a:hover {
+    text-decoration: underline;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: var(--surface-color);
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    width: 80%;
+    max-width: 500px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.close {
+    color: var(--text-color);
+    font-size: 28px;
+    cursor: pointer;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input[type="number"],
+.form-group select {
+    width: 100%;
+    padding: 8px;
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 4px;
+}
+
+.modal-footer {
+    margin-top: 20px;
+    text-align: right;
+}
+
+/* Notification */
+.notification-container {
+    position: fixed;
+    top: 60px; /* Move down below the header with settings icon */
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    max-width: 300px;
+}
+
+.notification {
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.3s, fadeOut 0.5s 2.5s forwards;
+    transition: transform 0.3s ease;
+}
+
+.notification:hover {
+    transform: translateX(-5px);
+}
+
+.notification.success {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.notification.error {
+    background-color: #f44336;
+    color: white;
+}
+
+.notification.info {
+    background-color: #2196F3;
+    color: white;
+}
+
+.notification.warning {
+    background-color: var(--warning-color);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(50px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .editor-container {
+        flex-direction: column;
+    }
+    
+    .editor-column {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        height: 50%; /* Split screen evenly on mobile */
+    }
+    
+    .editor-column:last-child {
+        border-bottom: none;
+    }
+    
+    header {
+        flex-direction: column;
+        height: auto;
+        padding: 0.5rem;
+    }
+    
+    header h1 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+    
+    .examples {
+        display: none; /* Hide examples on smaller screens to save space */
+    }
+    
+    #validation-panel {
+        max-height: 100px; /* Smaller validation panel on mobile */
+    }
+}
+
+/* Handle collapsed validation panel */
+.validation-collapsed #validation-panel {
+    max-height: 40px;
+    overflow: hidden;
+}
+
+.validation-collapsed #validation-content {
+    display: none;
+}
+
+/* History styles */
+.history-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.history-item {
+    display: flex;
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+.history-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.history-preview {
+    flex: 1;
+    font-family: 'Consolas', 'Monaco', monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.history-meta {
+    color: #777;
+    font-size: 0.8em;
+    margin: 0 15px;
+}
+
+.history-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.history-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #555;
+    transition: color 0.2s;
+}
+
+.history-actions .history-load:hover {
+    color: #2196F3;
+}
+
+.history-actions .history-delete:hover {
+    color: #f44336;
+}
+
+.history-empty {
+    text-align: center;
+    padding: 20px;
+    color: #777;
+    font-style: italic;
+}
+
+/* No select styling */
+.no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}

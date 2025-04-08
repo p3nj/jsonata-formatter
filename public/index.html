@@ -5,77 +5,139 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JSONata Formatter</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-    <link href="styles/main.css" rel="stylesheet" />
-
-    <!-- Monaco Editor correct loading sequence -->
-    <script>
-        var require = { 
-            paths: { 
-                'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs' 
-            }
-        };
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/editor/editor.main.nls.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/editor/editor.main.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- JSONata Library -->
+    <script src="https://cdn.jsdelivr.net/npm/jsonata@1.8.6/jsonata.min.js"></script>
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor/min/vs/loader.js"></script>
 </head>
 
 <body>
-    <button class="dark-mode-toggle" onclick="toggleDarkMode()">
-        <i class="fas fa-moon"></i>
-    </button>
-    <a href="https://try.jsonata.org/" target="_blank" aria-label="JSONata Website" class="jsonata-website-link">
-        <i class="fas fa-external-link-alt"></i>
-    </a>
-
     <header>
         <h1>JSONata Formatter</h1>
-        <div class="subtitle">Format and beautify your JSONata expressions</div>
+        <div class="actions">
+            <button id="history-btn" class="icon-btn" title="History">
+                <i class="fas fa-history"></i>
+            </button>
+            <button id="settings-btn" class="icon-btn" title="Settings">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button id="format-btn" class="primary-btn">Format</button>
+            <button id="clear-btn" class="secondary-btn">Clear</button>
+        </div>
     </header>
 
     <div class="container">
         <div class="editor-container">
-            <div class="section-header">
-                <h2>Input</h2>
-                <div class="button-group">
-                    <button onclick="clearInput()">
-                        <i class="fas fa-trash-alt"></i> Clear
-                    </button>
-                    <button onclick="formatJSONata()">
-                        <i class="fas fa-magic"></i> Format
+            <div class="editor-column" id="input-column">
+                <div class="editor-header">
+                    <h3>Input</h3>
+                    <div class="examples">
+                        <button class="example-btn" data-example="simple">Simple</button>
+                        <button class="example-btn" data-example="complex">Complex</button>
+                        <button class="example-btn" data-example="function">Function</button>
+                    </div>
+                </div>
+                <div id="input-editor" class="monaco-editor"></div>
+            </div>
+            
+            <div id="divider" class="editor-divider"></div>
+            
+            <div class="editor-column" id="output-column">
+                <div class="editor-header">
+                    <h3>Output</h3>
+                    <button id="copy-btn" class="icon-btn" title="Copy to Clipboard">
+                        <i class="fas fa-clipboard"></i>
                     </button>
                 </div>
+                <div id="output-editor" class="monaco-editor"></div>
             </div>
-            <div id="input-editor" class="monaco-editor-container"></div>
-        </div>
-
-        <div class="output-container">
-            <div class="section-header">
-                <h2>Formatted Output</h2>
-                <div class="button-group">
-                    <button class="copy-btn" onclick="copyOutput()">
-                        <i class="fas fa-copy"></i> Copy
-                    </button>
-                </div>
-            </div>
-            <div id="output-editor" class="monaco-editor-container"></div>
         </div>
     </div>
 
-    <div id="toast" class="toast">
-        <i class="fas fa-check-circle"></i>
-        <span id="toast-message">Copied to clipboard!</span>
+    <div id="validation-panel">
+        <div class="validation-header">
+            <h3>Validation</h3>
+            <button id="toggle-validation" class="icon-btn" title="Toggle Validation Panel">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+        </div>
+        <div id="validation-content"></div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="history-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Expression History</h2>
+                <span class="close" data-modal="history-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="history-list" class="history-list">
+                    <!-- History items will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="clear-history" class="secondary-btn">Clear History</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Format Settings</h2>
+                <span class="close" data-modal="settings-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="indent-size">Indent Size:</label>
+                    <input type="number" id="indent-size" value="2" min="1" max="8">
+                </div>
+                <div class="form-group">
+                    <label for="max-line-length">Max Line Length:</label>
+                    <input type="number" id="max-line-length" value="80" min="40" max="200">
+                </div>
+                <div class="form-group">
+                    <label for="braces-new-line">Braces on New Line:</label>
+                    <input type="checkbox" id="braces-new-line">
+                </div>
+                <div class="form-group">
+                    <label for="theme-selector">Editor Theme:</label>
+                    <select id="theme-selector">
+                        <option value="vs">Light</option>
+                        <option value="vs-dark" selected>Dark</option>
+                        <option value="hc-black">High Contrast</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="font-size">Font Size:</label>
+                    <input type="number" id="font-size" value="12" min="8" max="24">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-settings" class="primary-btn">Save Settings</button>
+            </div>
+        </div>
     </div>
 
     <footer>
-        JSONata Formatter - A tool for formatting and beautifying JSONata expressions <a href="https://github.com/p3nj/jsonata-formatter" target="_blank" aria-label="GitHub Repository">
-            <i class="fab fa-github github-icon"></i>
-        </a>
+        <div class="footer-content">
+            <span>JSONata Formatter</span>
+            <a href="https://github.com/p3nj/jsonata-formatter" target="_blank">
+                <i class="fab fa-github"></i> GitHub
+            </a>
+            <a href="https://jsonata.org" target="_blank">JSONata Docs</a>
+        </div>
     </footer>
 
-    <!-- Load the main script after Monaco -->
-    <script src="scripts/main.js"></script>
+    <!-- Remove JSONata from CDN -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/jsonata/jsonata.min.js"></script> -->
+
+    <!-- Main script -->
+    <script src="js/main.js"></script>
 </body>
 
 </html>
