@@ -1,15 +1,60 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const isDarkMode = localStorage.getItem('darkMode') === 'enabled' || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && localStorage.getItem('darkMode') === null);
-    if (isDarkMode) toggleDarkMode();
+// Global variables for editor instances
+let inputEditor, outputEditor;
 
-    let timeout;
-    document.getElementById('input-box').addEventListener('input', () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-            if (document.getElementById('input-box').value.trim()) formatJSONata();
-        }, 800);
-    });
-});
+// Initialize Monaco Editor when the document is loaded
+document.addEventListener('DOMContentLoaded', initializeEditors);
+
+function initializeEditors() {
+    // Make sure Monaco is available
+    if (typeof monaco === 'undefined') {
+        console.error('Monaco editor is not loaded yet');
+        // Try again in a moment
+        setTimeout(initializeEditors, 300);
+        return;
+    }
+
+    try {
+        // Create input editor
+        inputEditor = monaco.editor.create(document.getElementById('input-editor'), {
+            value: '',
+            language: 'json',
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            fontSize: 14,
+            automaticLayout: true
+        });
+
+        // Create output editor (read-only)
+        outputEditor = monaco.editor.create(document.getElementById('output-editor'), {
+            value: '',
+            language: 'json',
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            fontSize: 14,
+            readOnly: true,
+            automaticLayout: true
+        });
+
+        // Auto-format on content change with debounce
+        let timeout;
+        inputEditor.onDidChangeModelContent(() => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                if (inputEditor.getValue().trim()) formatJSONata();
+            }, 800);
+        });
+
+        // Apply initial dark mode if needed
+        const isDarkMode = localStorage.getItem('darkMode') === 'enabled' || 
+            (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && 
+            localStorage.getItem('darkMode') === null);
+        if (isDarkMode) toggleDarkMode();
+
+        console.log('Monaco editor initialized successfully');
+    } catch (e) {
+        console.error('Error initializing Monaco editor:', e);
+    }
+}
 
 function jsonataFormatter(code) {
     code = String(code || '');
@@ -101,27 +146,40 @@ function jsonataFormatter(code) {
 }
 
 function copyOutput() {
-    const output = document.getElementById('output-box');
-    if (!output.textContent.trim()) { showToast('Nothing to copy!', 'warning'); return; }
-    navigator.clipboard.writeText(output.textContent).then(() => showToast('Copied to clipboard!', 'success')).catch(err => { console.error('Error copying text: ', err); showToast('Failed to copy!', 'error'); });
+    const outputText = outputEditor.getValue();
+    if (!outputText.trim()) {
+        showToast('Nothing to copy!', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(outputText)
+        .then(() => showToast('Copied to clipboard!', 'success'))
+        .catch(err => {
+            console.error('Error copying text: ', err);
+            showToast('Failed to copy!', 'error');
+        });
 }
 
 function clearInput() {
-    document.getElementById('input-box').value = '';
-    document.getElementById('output-box').textContent = '';
-    Prism.highlightElement(document.getElementById('output-box'));
+    inputEditor.setValue('');
+    outputEditor.setValue('');
 }
 
 function formatJSONata() {
-    const input = document.getElementById('input-box').value;
-    if (!input.trim()) { showToast('Please enter some JSONata code first!', 'warning'); return; }
+    const input = inputEditor.getValue();
+    if (!input.trim()) {
+        showToast('Please enter some JSONata code first!', 'warning');
+        return;
+    }
+    
     try {
         const formatted = jsonataFormatter(input);
-        const output = document.getElementById('output-box');
-        output.textContent = formatted;
-        Prism.highlightElement(output);
+        outputEditor.setValue(formatted);
         showToast('Formatting completed!', 'success');
-    } catch (e) { showToast('Error formatting JSONata code', 'error'); console.error(e); }
+    } catch (e) {
+        showToast('Error formatting JSONata code', 'error');
+        console.error(e);
+    }
 }
 
 function showToast(message, type = 'success') {
@@ -139,6 +197,12 @@ function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
     const icon = document.querySelector('.dark-mode-toggle i');
     const darkModeEnabled = document.body.classList.contains('dark-mode');
+    
+    // Update Monaco editor theme
+    if (monaco && monaco.editor) {
+        monaco.editor.setTheme(darkModeEnabled ? 'vs-dark' : 'vs');
+    }
+    
     localStorage.setItem('darkMode', darkModeEnabled ? 'enabled' : 'disabled');
     icon.className = `fas fa-${darkModeEnabled ? 'sun' : 'moon'}`;
 }

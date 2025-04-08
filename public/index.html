@@ -5,16 +5,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JSONata Formatter</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-
-    <!-- Load Prism.js first -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-
-    <!-- Load your main.js after Prism.js -->
-    <script src="scripts/main.js"></script>
     <link href="styles/main.css" rel="stylesheet" />
+
+    <!-- Monaco Editor correct loading sequence -->
+    <script>
+        var require = { 
+            paths: { 
+                'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs' 
+            }
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/editor/editor.main.nls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/editor/editor.main.js"></script>
 </head>
 
 <body>
@@ -43,7 +47,7 @@
                     </button>
                 </div>
             </div>
-            <textarea id="input-box" placeholder="Paste your JSONata code here..."></textarea>
+            <div id="input-editor" class="monaco-editor-container"></div>
         </div>
 
         <div class="output-container">
@@ -55,9 +59,7 @@
                     </button>
                 </div>
             </div>
-            <div class="output-wrapper">
-                <pre><code id="output-box" class="language-json"></code></pre>
-            </div>
+            <div id="output-editor" class="monaco-editor-container"></div>
         </div>
     </div>
 
@@ -71,6 +73,9 @@
             <i class="fab fa-github github-icon"></i>
         </a>
     </footer>
+
+    <!-- Load the main script after Monaco -->
+    <script src="scripts/main.js"></script>
 </body>
 
 </html>
