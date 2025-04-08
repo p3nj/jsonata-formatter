@@ -4,7 +4,7 @@ let inputEditor, outputEditor;
 // Initialize Monaco Editor when the document is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Use proper AMD loading for Monaco
-    require(['vs/editor/editor.main'], function() {
+    require(['vs/editor/editor.main'], function () {
         initializeMonaco();
     });
 });
@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initializeMonaco() {
     try {
         console.log('Initializing Monaco editors...');
-        
+
         // Create input editor
         inputEditor = monaco.editor.create(document.getElementById('input-editor'), {
             value: '',
@@ -44,9 +44,9 @@ function initializeMonaco() {
         });
 
         // Apply initial dark mode if needed
-        const isDarkMode = localStorage.getItem('darkMode') === 'enabled' || 
-            (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && 
-            localStorage.getItem('darkMode') === null);
+        const isDarkMode = localStorage.getItem('darkMode') === 'enabled' ||
+            (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches &&
+                localStorage.getItem('darkMode') === null);
         if (isDarkMode) toggleDarkMode();
 
         console.log('Monaco editor initialized successfully');
@@ -56,20 +56,365 @@ function initializeMonaco() {
 }
 
 function jsonataFormatter(code) {
-    code = String(code || '');
+    // Tokenize the input first for more efficient processing
+    const tokens = tokenizeJSONata(code);
+
+    // Format using the tokens
     let formatted = '';
     let indentLevel = 0;
     let indentSize = 2;
-    let inString = false;
-    let stringChar = null;
-    let bracketStack = []; // Track all brackets for proper pairing
-    let inMultiLineComment = false;
-    
-    // Helper functions
-    const addNewlineIndent = () => formatted += '\n' + ' '.repeat(Math.max(0, indentLevel) * indentSize);
-    const isWhitespace = char => /\s/.test(char);
-    
-    // Lists of JSONata elements
+
+    // Track previous token for context-aware formatting
+    let previousToken = null;
+
+    // Enhanced bracket tracking with positions
+    const bracketStack = [];
+    // Track nested structure for proper indentation
+    const structureStack = [];
+
+    // Track current function call depth
+    let functionCallDepth = 0;
+
+    // Helper function to safely create indentation
+    const indent = (level) => ' '.repeat(Math.max(0, level * indentSize));
+
+    // More efficient peek ahead function
+    const peekAhead = (index) => {
+        let j = index + 1;
+        while (j < tokens.length &&
+            (tokens[j].type === 'whitespace' || tokens[j].type === 'newline')) {
+            j++;
+        }
+        return j < tokens.length ? tokens[j] : null;
+    };
+
+    // Helper to determine if a bracket pair is a filter in a property path
+    const isPropertyFilter = (openIndex) => {
+        if (openIndex <= 0) return false;
+
+        // Look at token before the opening bracket
+        let prevToken = tokens[openIndex - 1];
+        while (openIndex > 1 && (prevToken.type === 'whitespace' || prevToken.type === 'newline')) {
+            prevToken = tokens[--openIndex - 1];
+        }
+
+        return prevToken && (prevToken.type === 'identifier' ||
+            prevToken.value === ']' || prevToken.value === ')');
+    };
+
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        const ahead = peekAhead(i);
+
+        switch (token.type) {
+            // Literals and identifiers
+            case 'string':
+            case 'number':
+            case 'identifier':
+            case 'keyword':
+            case 'function':
+                // Add space if needed for readability
+                if (previousToken &&
+                    !['(', '[', '{', '.'].includes(previousToken.value) &&
+                    !['operator', 'punctuation'].includes(previousToken.type)) {
+                    formatted += ' ';
+                }
+                formatted += token.value;
+                break;
+
+            case 'operator':
+                // Handle operators with proper spacing
+                if (token.value === ':=' || token.value === '~>') {
+                    formatted += token.value;
+                } else {
+                    // Standard operators with spaces
+                    if (previousToken &&
+                        !['(', '['].includes(previousToken.value) &&
+                        formatted[formatted.length - 1] !== ' ') {
+                        formatted += ' ';
+                    }
+                    formatted += token.value;
+                    if (ahead && ![')', ']', ',', '}'].includes(ahead.value)) {
+                        formatted += ' ';
+                    }
+                }
+                break;
+
+            case 'punctuation':
+                switch (token.value) {
+                    // Opening brackets
+                    case '(':
+                        formatted += '(';
+
+                        // Check if this is a function call
+                        const isFunction = previousToken &&
+                            (previousToken.type === 'function' || previousToken.type === 'identifier');
+
+                        if (isFunction) {
+                            functionCallDepth++;
+                        }
+
+                        // Push to bracket stack with context info
+                        bracketStack.push({
+                            type: '(',
+                            isFunction: isFunction,
+                            indentLevel: indentLevel
+                        });
+
+                        // Only add newline for non-function parentheses
+                        if (!isFunction && ahead && ahead.value !== ')') {
+                            indentLevel++;
+                            structureStack.push('(');
+                            formatted += '\n' + indent(indentLevel);
+                        }
+                        break;
+
+                    case '[':
+                        // Determine if this is a filter in a property path
+                        const filter = isPropertyFilter(i);
+
+                        // Save bracket context
+                        bracketStack.push({
+                            type: '[',
+                            isFilter: filter,
+                            indentLevel: indentLevel
+                        });
+
+                        formatted += '[';
+
+                        if (filter) {
+                            // This is a filter in a property path
+                            // Check if it's a complex filter that needs a line break
+                            const closingIdx = findMatchingBracket(tokens, i, '[', ']');
+                            const complexity = getExpressionComplexity(tokens, i + 1, closingIdx - 1);
+
+                            if (complexity > 5) {
+                                indentLevel++;
+                                structureStack.push('[filter]');
+                                formatted += '\n' + indent(indentLevel);
+                            }
+                        } else {
+                            // Regular array
+                            indentLevel++;
+                            structureStack.push('[array]');
+                            formatted += '\n' + indent(indentLevel);
+                        }
+                        break;
+
+                    case '{':
+                        bracketStack.push({
+                            type: '{',
+                            indentLevel: indentLevel
+                        });
+
+                        formatted += '{';
+                        indentLevel++;
+                        structureStack.push('{');
+                        formatted += '\n' + indent(indentLevel);
+                        break;
+
+                    // Closing brackets
+                    case ')':
+                        // Find matching opening bracket
+                        let openingParen = null;
+                        while (bracketStack.length > 0) {
+                            const last = bracketStack.pop();
+                            if (last.type === '(') {
+                                openingParen = last;
+                                break;
+                            }
+                        }
+
+                        if (openingParen && openingParen.isFunction) {
+                            // Function call - simple closing
+                            functionCallDepth--;
+                            formatted += ')';
+                        } else {
+                            // Grouped expression - proper indentation
+                            if (structureStack.length > 0 && structureStack[structureStack.length - 1] === '(') {
+                                structureStack.pop();
+                                indentLevel = Math.max(0, indentLevel - 1);
+                            }
+
+                            // Only add newline if not an empty group and not right after opening paren
+                            if (previousToken && previousToken.value !== '(') {
+                                formatted += '\n' + indent(indentLevel);
+                            }
+                            formatted += ')';
+                        }
+                        break;
+
+                    case ']':
+                        // Find matching opening bracket
+                        let openingBracket = null;
+                        while (bracketStack.length > 0) {
+                            const last = bracketStack.pop();
+                            if (last.type === '[') {
+                                openingBracket = last;
+                                break;
+                            }
+                        }
+
+                        if (openingBracket && openingBracket.isFilter) {
+                            // Filter closing - check complexity
+                            const keepOnSameLine = formatted[formatted.length - 1] !== '\n' &&
+                                formatted.split('\n').pop().length < 50;
+
+                            if (keepOnSameLine) {
+                                formatted += ']';
+                            } else {
+                                if (structureStack.length > 0 && structureStack[structureStack.length - 1] === '[filter]') {
+                                    structureStack.pop();
+                                    indentLevel = Math.max(0, indentLevel - 1);
+                                }
+                                formatted += '\n' + indent(indentLevel) + ']';
+                            }
+                        } else {
+                            // Array closing
+                            if (structureStack.length > 0 && structureStack[structureStack.length - 1] === '[array]') {
+                                structureStack.pop();
+                                indentLevel = Math.max(0, indentLevel - 1);
+                            }
+                            formatted += '\n' + indent(indentLevel) + ']';
+                        }
+                        break;
+
+                    case '}':
+                        // Pop the stack until matching bracket
+                        while (bracketStack.length > 0) {
+                            const last = bracketStack.pop();
+                            if (last.type === '{') {
+                                break;
+                            }
+                        }
+
+                        if (structureStack.length > 0 && structureStack[structureStack.length - 1] === '{') {
+                            structureStack.pop();
+                            indentLevel = Math.max(0, indentLevel - 1);
+                        }
+
+                        formatted += '\n' + indent(indentLevel) + '}';
+                        break;
+
+                    case '.':
+                        // Property access - clean up any spaces before dot
+                        while (formatted.length > 0 && formatted[formatted.length - 1] === ' ') {
+                            formatted = formatted.slice(0, -1);
+                        }
+                        formatted += '.';
+
+                        // Check if we need a line break for complex property chains
+                        if (i > 0 && tokens[i - 1].value === ']') {
+                            // After a filter, consider adding a line break for readability
+                            if (formatted.split('\n').pop().length > 40) {
+                                formatted += '\n' + indent(indentLevel);
+                            }
+                        }
+                        break;
+
+                    case ',':
+                        formatted += ',';
+
+                        if (ahead && [')', ']', '}'].includes(ahead.value)) {
+                            // No additional formatting if followed by closing bracket
+                        } else if (functionCallDepth > 0) {
+                            // Simple space for function parameters
+                            formatted += ' ';
+                        } else {
+                            // Newline for arrays and objects
+                            formatted += '\n' + indent(indentLevel);
+                        }
+                        break;
+
+                    case ':':
+                        // Skip if part of := operator
+                        if (ahead && ahead.value === '=') {
+                            // Will be handled as operator
+                        } else {
+                            formatted += ': ';
+                        }
+                        break;
+
+                    case ';':
+                        formatted += ';';
+                        formatted += '\n' + indent(indentLevel);
+                        break;
+
+                    default:
+                        formatted += token.value;
+                }
+                break;
+
+            case 'comment':
+                // Preserve comments
+                if (token.value.startsWith('/*')) {
+                    formatted += token.value;
+                } else {
+                    formatted += token.value;
+                    formatted += '\n' + indent(indentLevel);
+                }
+                break;
+
+            // Skip whitespace tokens - we add our own
+            case 'whitespace':
+            case 'newline':
+                break;
+        }
+
+        // Update previous token for non-whitespace tokens
+        if (token.type !== 'whitespace' && token.type !== 'newline') {
+            previousToken = token;
+        }
+    }
+
+    return formatted.trim();
+}
+
+// Helper function to find matching closing bracket
+function findMatchingBracket(tokens, startIndex, openBracket, closeBracket) {
+    let depth = 1;
+    let i = startIndex + 1;
+
+    while (i < tokens.length && depth > 0) {
+        if (tokens[i].value === openBracket) depth++;
+        if (tokens[i].value === closeBracket) depth--;
+        i++;
+    }
+
+    return i - 1;
+}
+
+// Helper to estimate the complexity of an expression
+function getExpressionComplexity(tokens, startIndex, endIndex) {
+    if (startIndex >= endIndex) return 0;
+
+    let complexity = 0;
+    let nonWhitespaceCount = 0;
+
+    for (let i = startIndex; i <= endIndex; i++) {
+        if (tokens[i].type !== 'whitespace' && tokens[i].type !== 'newline') {
+            complexity++;
+            nonWhitespaceCount++;
+
+            // Additional weight for certain token types
+            if (['operator', 'function'].includes(tokens[i].type)) {
+                complexity += 1;
+            }
+            if (['[', '{', '('].includes(tokens[i].value)) {
+                complexity += 2;
+            }
+        }
+    }
+
+    return complexity;
+}
+
+function tokenizeJSONata(code) {
+    const tokens = [];
+    let i = 0;
+
+    // Lists for recognizing keywords and built-in functions
+    const keywords = ['and', 'or', 'in', 'as', 'true', 'false', 'null', 'if', 'then', 'else', 'some', 'every'];
     const builtinFunctions = [
         '$abs', '$floor', '$ceil', '$round', '$power', '$sqrt', '$random', '$number', "$formatNumber", "$formatBase", "$formatInteger", "$parseInteger",
         '$string', '$length', '$substring', '$substringBefore', '$substringAfter', '$uppercase', '$lowercase', '$trim', '$pad', '$contains', '$split', '$join', '$match', '$replace', '$eval', '$base64encode', '$base64decode', '$encodeUrlComponent', '$encodeUrl', '$decodeUrlComponent', '$decodeUrl',
@@ -83,297 +428,164 @@ function jsonataFormatter(code) {
         '$context'
     ];
 
-    const keywords = [
-        'and', 'or', 'in', 'as', 'true', 'false', 'null', 'if', 'then', 'else', 'some', 'every'
-    ];
+    const isWhitespace = c => /\s/.test(c);
+    const isDigit = c => /[0-9]/.test(c);
+    const isAlpha = c => /[a-zA-Z_]/.test(c);
+    const isAlphaNumeric = c => /[a-zA-Z0-9_]/.test(c);
 
-    // Process the code character by character
-    for (let i = 0; i < code.length; i++) {
-        const currentChar = code[i];
-        const nextChar = i < code.length - 1 ? code[i + 1] : '';
-        const prevChar = i > 0 ? code[i - 1] : '';
-        
-        // Handle multi-line comments
-        if (inMultiLineComment) {
-            formatted += currentChar;
-            if (currentChar === '*' && nextChar === '/') {
-                formatted += nextChar;
+    while (i < code.length) {
+        const char = code[i];
+
+        // Handle whitespace
+        if (isWhitespace(char)) {
+            let whitespace = '';
+            while (i < code.length && isWhitespace(code[i])) {
+                if (code[i] === '\n' || code[i] === '\r') {
+                    tokens.push({ type: 'newline', value: code[i] });
+                } else {
+                    whitespace += code[i];
+                }
                 i++;
-                inMultiLineComment = false;
+            }
+            if (whitespace) {
+                tokens.push({ type: 'whitespace', value: whitespace });
             }
             continue;
         }
-        
-        if (currentChar === '/' && nextChar === '*' && !inString) {
-            inMultiLineComment = true;
-            formatted += '/*';
+
+        // Handle strings
+        if (char === '"' || char === "'") {
+            const quote = char;
+            let string = quote;
+            i++;
+
+            while (i < code.length) {
+                string += code[i];
+                if (code[i] === quote && code[i - 1] !== '\\') break;
+                i++;
+            }
+
+            tokens.push({ type: 'string', value: string });
             i++;
             continue;
         }
-        
-        // Handle strings
-        if (inString) {
-            formatted += currentChar;
-            if (currentChar === stringChar && prevChar !== '\\') {
-                inString = false;
-            }
-            continue;
-        } else if ((currentChar === '"' || currentChar === "'") && prevChar !== '\\') {
-            inString = true;
-            stringChar = currentChar;
-            formatted += currentChar;
-            continue;
-        }
-        
-        // Handle operators and punctuation
-        switch (currentChar) {
-            case '(':
-                bracketStack.push('(');
-                formatted += currentChar;
-                
-                // Check if we're starting a function call (preceded by $)
-                const functionStart = isFunctionStart(code, i);
-                if (!functionStart && nextChar !== ')') {
-                    indentLevel++;
-                    addNewlineIndent();
-                }
-                break;
-                
-            case '[':
-                bracketStack.push('[');
-                formatted += currentChar;
-                
-                // Don't add newline for filter expressions or function arguments
-                const isPathFilter = isFilterExpression(code, i);
-                if (!isPathFilter) {
-                    indentLevel++;
-                    addNewlineIndent();
-                }
-                break;
-                
-            case '{':
-                bracketStack.push('{');
-                formatted += currentChar;
-                indentLevel++;
-                addNewlineIndent();
-                break;
-                
-            case ')':
-                if (bracketStack.length && bracketStack[bracketStack.length - 1] === '(') {
-                    bracketStack.pop();
-                }
-                
-                // Only decrease indent and add newline if not inside a function call
-                // or if this closes the outermost function parenthesis
-                if (prevChar !== '(' && shouldDecreaseIndent(bracketStack, '(')) {
-                    indentLevel--;
-                    addNewlineIndent();
-                }
-                formatted += currentChar;
-                break;
-                
-            case ']':
-                if (bracketStack.length && bracketStack[bracketStack.length - 1] === '[') {
-                    bracketStack.pop();
-                }
-                
-                // Only decrease indent for array brackets, not filter expressions
-                if (shouldDecreaseIndent(bracketStack, '[')) {
-                    indentLevel--;
-                    addNewlineIndent();
-                }
-                formatted += currentChar;
-                break;
-                
-            case '}':
-                if (bracketStack.length && bracketStack[bracketStack.length - 1] === '{') {
-                    bracketStack.pop();
-                }
-                indentLevel--;
-                addNewlineIndent();
-                formatted += currentChar;
-                break;
-                
-            case ',':
-                formatted += ',';
-                // Don't add newline if next char is closing bracket or if inside a function
-                if (![']', '}', ')'].includes(nextChar) && !isInFunction(bracketStack)) {
-                    addNewlineIndent();
-                } else if (nextChar !== ' ' && !isWhitespace(nextChar)) {
-                    formatted += ' ';
-                }
-                break;
-                
-            case ':':
-                if (nextChar === '=') {
-                    formatted += ': ';
-                    formatted += '=';
-                    i++;
-                    if (!isWhitespace(code[i + 1])) formatted += ' ';
-                } else {
-                    formatted += ': ';
-                }
-                break;
-                
-            case ';':
-                formatted += ';';
-                addNewlineIndent();
-                break;
-                
-            case '|':
-                formatted += nextChar === '|' ? (i++, ' || ') : ' | ';
-                break;
-                
-            case '&':
-                formatted += nextChar === '&' ? (i++, ' && ') : ' & ';
-                break;
-                
-            case '~':
-                if (nextChar === '>') {
-                    formatted += ' ~>';
-                    i++;
-                    // Add newline after ~> unless it's part of a function chain
-                    if (!isInFunction(bracketStack) && !isNextCharFunctionStart(code, i + 1)) {
-                        addNewlineIndent();
-                    }
-                } else {
-                    formatted += '~';
-                }
-                break;
-                
-            case '=':
-            case '+':
-            case '-':
-            case '*':
-            case '/':
-            case '<':
-            case '>':
-            case '!':
-                // Add spaces around operators
-                if (prevChar !== ' ' && !isWhitespace(prevChar) && formatted.length > 0 && formatted[formatted.length - 1] !== ' ') {
-                    formatted += ' ';
-                }
-                
-                formatted += currentChar;
-                
-                if (nextChar === '=') {
-                    formatted += nextChar;
-                    i++;
-                }
-                
-                if (!isWhitespace(code[i + 1]) && i + 1 < code.length && code[i + 1] !== ')' && code[i + 1] !== ']' && code[i + 1] !== '}') {
-                    formatted += ' ';
-                }
-                break;
-                
-            case ' ':
-            case '\t':
-            case '\n':
-            case '\r':
-                // Only add one space if the previous character isn't a space
-                if (formatted.length > 0 && !isWhitespace(formatted[formatted.length - 1]) && !isWhitespace(nextChar)) {
-                    formatted += ' ';
-                }
-                break;
-                
-            case '$':
-                // Special handling for variable/function references
-                if (isVariableOrFunctionRef(code, i)) {
-                    const token = extractVariableOrFunction(code, i);
-                    formatted += token;
-                    i += token.length - 1;
-                } else {
-                    formatted += currentChar;
-                }
-                break;
-                
-            default:
-                // Check for keywords
-                let matched = false;
-                for (const keyword of keywords) {
-                    if (code.substring(i, i + keyword.length) === keyword && 
-                        (i + keyword.length >= code.length || !/[a-zA-Z0-9_]/.test(code[i + keyword.length]))) {
-                        formatted += keyword;
-                        i += keyword.length - 1;
-                        matched = true;
-                        
-                        // Add a space after keywords if needed
-                        if (i + 1 < code.length && !isWhitespace(code[i + 1]) && ![',', ';', ')', ']', '}'].includes(code[i + 1])) {
-                            formatted += ' ';
-                        }
+
+        // Handle comments
+        if (char === '/' && i + 1 < code.length) {
+            if (code[i + 1] === '*') {
+                // Multi-line comment
+                let comment = '/*';
+                i += 2;
+
+                while (i < code.length) {
+                    if (code[i] === '*' && i + 1 < code.length && code[i + 1] === '/') {
+                        comment += '*/';
+                        i += 2;
                         break;
                     }
+                    comment += code[i];
+                    i++;
                 }
-                
-                if (!matched) {
-                    formatted += currentChar;
-                }
-        }
-    }
-    
-    return formatted.trim();
 
-    // Helper functions for the formatter
-    function isFunctionStart(code, pos) {
-        // Check if we're at a function call (preceded by $)
-        if (pos > 0) {
-            let j = pos - 1;
-            while (j >= 0 && isWhitespace(code[j])) j--; // Skip whitespace
-            
-            if (j >= 0 && code[j] === '$') return true;
-            
-            // Check if it's a built-in function
-            for (const func of builtinFunctions) {
-                const startPos = pos - func.length;
-                if (startPos >= 0 && code.substring(startPos, pos) === func) {
-                    return true;
+                tokens.push({ type: 'comment', value: comment });
+                continue;
+            } else if (code[i + 1] === '/') {
+                // Single-line comment
+                let comment = '//';
+                i += 2;
+
+                while (i < code.length && code[i] !== '\n') {
+                    comment += code[i];
+                    i++;
+                }
+
+                tokens.push({ type: 'comment', value: comment });
+                continue;
+            }
+        }
+
+        // Handle numbers
+        if (isDigit(char) || (char === '.' && i + 1 < code.length && isDigit(code[i + 1]))) {
+            let number = '';
+            let hasDecimal = false;
+
+            if (char === '.') {
+                number += '0.';
+                hasDecimal = true;
+                i++;
+            }
+
+            while (i < code.length && (isDigit(code[i]) || (code[i] === '.' && !hasDecimal))) {
+                if (code[i] === '.') hasDecimal = true;
+                number += code[i];
+                i++;
+            }
+
+            tokens.push({ type: 'number', value: number });
+            continue;
+        }
+
+        // Handle identifiers, keywords, and functions
+        if (isAlpha(char) || char === '$') {
+            let id = '';
+            while (i < code.length && (isAlphaNumeric(code[i]) || code[i] === '$')) {
+                id += code[i];
+                i++;
+            }
+
+            // Check if this is a keyword
+            if (keywords.includes(id)) {
+                tokens.push({ type: 'keyword', value: id });
+            } else if (builtinFunctions.includes(id) || id.startsWith('$')) {
+                tokens.push({ type: 'function', value: id });
+            } else {
+                // Enhanced lookahead for better context detection
+                let j = i;
+                while (j < code.length && isWhitespace(code[j])) j++;
+                const nextChar = j < code.length ? code[j] : null;
+
+                // Detect if this identifier is a function or part of a property path
+                if (nextChar === '(') {
+                    tokens.push({ type: 'function', value: id });
+                } else if (nextChar === '.' || nextChar === '[') {
+                    // This is part of a property path
+                    tokens.push({ type: 'identifier', value: id });
+                } else {
+                    tokens.push({ type: 'identifier', value: id });
                 }
             }
+            continue;
         }
-        return false;
-    }
-    
-    function isFilterExpression(code, pos) {
-        // Check if this is a filter expression [...]
-        if (pos > 0) {
-            let j = pos - 1;
-            while (j >= 0 && isWhitespace(code[j])) j--; // Skip whitespace
-            if (j >= 0 && /[a-zA-Z0-9_$\)\]]/.test(code[j])) {
-                return true; // It's a filter if preceded by variable/property reference
+
+        // Handle operators
+        const operators = ['==', '!=', '<=', '>=', ':=', '~>', '&&', '||', '=', '<', '>', '+', '-', '*', '/', '!', '?', '&', '|'];
+        let matched = false;
+
+        for (const op of operators) {
+            if (code.substring(i, i + op.length) === op) {
+                tokens.push({ type: 'operator', value: op });
+                i += op.length;
+                matched = true;
+                break;
             }
         }
-        return false;
-    }
-    
-    function shouldDecreaseIndent(stack, bracket) {
-        // Check if we should decrease indent level based on bracket type and stack
-        return stack.lastIndexOf(bracket) === -1;
-    }
-    
-    function isInFunction(stack) {
-        // Check if we're inside a function call
-        return stack.includes('(');
-    }
-    
-    function isNextCharFunctionStart(code, pos) {
-        // Check if next non-whitespace is a function start
-        let j = pos;
-        while (j < code.length && isWhitespace(code[j])) j++;
-        return j < code.length && code[j] === '$';
-    }
-    
-    function isVariableOrFunctionRef(code, pos) {
-        return code[pos] === '$';
-    }
-    
-    function extractVariableOrFunction(code, pos) {
-        // Extract a variable or function reference starting with $
-        let end = pos + 1;
-        while (end < code.length && /[a-zA-Z0-9_]/.test(code[end])) {
-            end++;
+
+        if (matched) continue;
+
+        // Handle punctuation
+        const punctuation = ['(', ')', '[', ']', '{', '}', ',', ':', ';', '.'];
+        if (punctuation.includes(char)) {
+            tokens.push({ type: 'punctuation', value: char });
+            i++;
+            continue;
         }
-        return code.substring(pos, end);
+
+        // Handle unknown characters
+        tokens.push({ type: 'unknown', value: char });
+        i++;
     }
+
+    return tokens;
 }
 
 function copyOutput() {
@@ -382,7 +594,7 @@ function copyOutput() {
         showToast('Nothing to copy!', 'warning');
         return;
     }
-    
+
     navigator.clipboard.writeText(outputText)
         .then(() => showToast('Copied to clipboard!', 'success'))
         .catch(err => {
@@ -402,7 +614,7 @@ function formatJSONata() {
         showToast('Please enter some JSONata code first!', 'warning');
         return;
     }
-    
+
     try {
         const formatted = jsonataFormatter(input);
         outputEditor.setValue(formatted);
@@ -428,12 +640,12 @@ function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
     const icon = document.querySelector('.dark-mode-toggle i');
     const darkModeEnabled = document.body.classList.contains('dark-mode');
-    
+
     // Update Monaco editor theme
     if (monaco && monaco.editor) {
         monaco.editor.setTheme(darkModeEnabled ? 'vs-dark' : 'vs');
     }
-    
+
     localStorage.setItem('darkMode', darkModeEnabled ? 'enabled' : 'disabled');
     icon.className = `fas fa-${darkModeEnabled ? 'sun' : 'moon'}`;
 }
