@@ -705,6 +705,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // The actual formatting implementation
     function formatExpression(expression, options = {}) {
+        const noBreakContexts = ['predicate', 'functionArgs', 'array', 'groupingParen'];
+
         const defaultOptions = {
             indentSize: 2,
             maxLineLength: 80,
@@ -784,29 +786,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // --- Handle Indentation --- 
             if (token === '}' || token === ']' || token === ')') { // Closing Delimiter
-                let lastContent = findLastMeaningfulContent();
+                // --- Debug log for closing delimiter ---
+                console.log(`Closing Delimiter: ${token}, Popped Context: ${contextStack[contextStack.length]}, Current Line: "${currentLine}"`);
 
                 indentLevel = Math.max(0, indentLevel - 1);
                 currentIndentStr = getCurrentIndent();
                 let poppedContext = contextStack.pop();
-                currentContext = contextStack.length > 0 ? contextStack[contextStack.length - 1] : 'jsonata';
 
-                // Add newline before closing delimiter if block wasn't empty
-                // Check last *actual content*, not just previous token or current line whitespace
+                // Decide whether to force a newline BEFORE this closing delimiter
                 const openingDelimiter = token === '}' ? '{' : (token === ']' ? '[' : '(');
-                // If current line has content beyond indent OR if last meaningful pushed token wasn't the opener
-                if ((currentLine.trim() !== '' && currentLine.trim() !== currentIndentStr) ||
-                    (currentLine.trim() === '' && lastContent !== openingDelimiter))
-                {
+                let forceNewline = false;
+                // Only consider forcing a newline if NOT closing a no-break context
+                if (!noBreakContexts.includes(poppedContext)) {
+                    let lastMeaningfulContent = findLastMeaningfulContent(); // Use different name
+                    if ((currentLine.trim() !== '' && currentLine.trim() !== currentIndentStr) ||
+                        (currentLine.trim() === '' && lastMeaningfulContent !== openingDelimiter))
+                    {
+                        forceNewline = true;
+                    }
+                }
+
+                if (forceNewline) {
+                    // --- Debug log ---
+                    console.log(`Forcing newline before closing ${token}`);
                     pushLine(currentLine);
                     currentLine = currentIndentStr; // Start the new line with the correct (decremented) indent
                 }
-                 // Special case: If closing a predicate ']', stay on same line if possible before next step .
-                if (poppedContext === 'predicate' && nextToken === '.') {
-                   // Handled by spacing rules below 
-                } else if (poppedContext === 'predicate') {
-                   // If predicate doesn't end line, handle normally 
-                }
+
+                // Update context *after* potential newline logic
+                currentContext = contextStack.length > 0 ? contextStack[contextStack.length - 1] : 'jsonata';
+
+                // Special case: If closing a predicate ']', stay on same line if possible before next step .
+                // This logic might be redundant now?
+                // if (poppedContext === 'predicate' && nextToken === '.') {
+                // }
             }
 
             // --- Calculate Spacing --- 
@@ -814,13 +827,20 @@ document.addEventListener('DOMContentLoaded', function() {
             let spaceBefore = false;
             if (currentLine && !currentLine.endsWith(currentIndentStr) && !currentLine.endsWith(' ')) {
                 spaceBefore = true;
+                // --- Debug log ---
+                // console.log(`Spacing Check: Token: ${token}, Prev: ${prevToken}, Context: ${currentContext}`);
                 if (['.', ',', ';', ')', ']', '}'].includes(token)) spaceBefore = false;
                 if (['(', '[', '{', '.', '$', '$$'].includes(prevToken)) spaceBefore = false;
                 if (token === '[' && !['{', '[', '(', ',', ';', ':=', '+', '-', '*', '/', '=', '<', '>', '&', '|', '?', ':', 'and', 'or', 'in'].includes(prevToken)) spaceBefore = false; // Array access/predicate
                 if (token === '?' && prevToken === ')') spaceBefore = true; // Space before ? after ) e.g. (cond) ?
                 if (isBinaryOp(token)) {
                     if (!(currentContext === 'predicate' && token === '=')) {
+                        // Debug log for = spacing
+                        if (token === '=') { console.log(`Spacing check for =: Context is '${currentContext}', applying space.`); }
                         spaceBefore = true;
+                    } else if (token === '=') { // Specifically when spacing is suppressed for = in predicate
+                        // --- Debug log for = spacing suppression ---
+                        console.log(`Spacing check for =: Context is '${currentContext}', suppressing space.`);
                     }
                 }
                 if (isBinaryOp(prevToken)) {
@@ -842,8 +862,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const isFunctionCall = (t) => /^\$[a-zA-Z_]\w*$/.test(t);
             const isLiteral = (t) => /^(".*?"|'.*?'|\d|true|false|null)/.test(t);
 
-            const noBreakContexts = ['predicate', 'functionArgs', 'array', 'groupingParen'];
-
             let tokenToAdd = (spaceBefore ? ' ' : '') + token;
             let potentialNewLine = false; // Reintroduce variable
 
@@ -851,6 +869,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!noBreakContexts.includes(currentContext) &&
                 currentLine.length + tokenToAdd.length > options.maxLineLength)
             {
+                // Debug log: Check if line breaking logic is entered
+                console.log(`Line break check ENTERED for token: ${token}, Context: ${currentContext}, Line: "${currentLine}"`);
                 // --- Reinstate original line breaking logic --- 
                 let breakPointFound = false;
                 let continuationIndent = indentChar.repeat(indentLevel + 2);
@@ -882,13 +902,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // 3. Hard break (last resort): Break before the current token
-                if (!breakPointFound && currentLine.trim() !== currentIndentStr) { // Avoid break if line is essentially empty
+                // Ensure hard break also respects context
+                if (!breakPointFound && currentLine.trim() !== currentIndentStr && !noBreakContexts.includes(currentContext)) { 
+                    console.log(`Hard break triggered before token: ${token}, currentLine: "${currentLine}"`);
                     pushLine(currentLine);
                     currentLine = continuationIndent + token.trim();
                     tokenToAdd = token.trim(); 
                     potentialNewLine = true; // Set flag when hard break happens
                     spaceBefore = false;
-                    // Need to re-evaluate spacing for the *next* token based on this forced break
+                    // Revert: Let context-specific logic handle newLineAfter for ]
+                    // newLineAfter = false; 
                 } else if (breakPointFound) {
                     // If we broke mid-line, the token still needs adding to the new currentLine
                     spaceBefore = false; // Don't add space at start of continuation line
@@ -934,8 +957,12 @@ document.addEventListener('DOMContentLoaded', function() {
                  // Determine context: array or predicate
                  if (nextToken && (isLiteral(nextToken) || nextToken.startsWith('$') || ['{', '['].includes(nextToken))) {
                      contextStack.push('array');
+                     // Debug log
+                     // console.log("Pushed context: array"); 
                  } else {
                      contextStack.push('predicate');
+                     // Debug log
+                     // console.log("Pushed context: predicate"); 
                  }
                  // Suppress newline after opening bracket in predicate/array context unless followed by {
                  if (nextToken === '{') {
