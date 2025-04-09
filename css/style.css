@@ -57,44 +57,37 @@ header h1 {
     height: calc(100vh - 60px - 34px); /* Viewport height - header - footer */
 }
 
-/* Critical editor layout styles */
+/* Editor Layout Styles */
 .editor-container {
     display: flex;
     width: 100%;
-    height: 70vh;
+    height: 100vh;
     position: relative;
     overflow: hidden;
 }
 
-/* Editor column styles */
 .editor-column {
-    height: 100%;
-    overflow: hidden;
     position: relative;
-    transition: width 0.05s;
-    /* Remove flex: 1 as it conflicts with explicit width settings */
+    height: 100%;
+    transition: width 0.1s ease;
+    overflow: hidden;
 }
 
 #input-column {
-    width: 50%; /* Initial width */
+    width: 50%;
 }
 
 #output-column {
-    width: 50%; /* Initial width */
+    width: 50%;
 }
 
-/* Essential divider styles */
 .editor-divider {
     width: 8px;
     background-color: #444;
     cursor: col-resize;
     position: relative;
     z-index: 10;
-    flex-shrink: 0; /* Prevent divider from shrinking */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background-color 0.2s;
+    flex-shrink: 0;
 }
 
 .editor-divider:hover,
@@ -102,36 +95,28 @@ header h1 {
     background-color: #666;
 }
 
-/* Visual indicator on divider */
-.editor-divider::after {
+.editor-divider:hover::after,
+.editor-divider.active::after {
     content: "";
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    height: 30px;
+    height: 50px;
     width: 2px;
     background-color: #aaa;
 }
 
-.editor-divider::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 2px;
-    height: 30px;
-    background-color: #888;
-    border-radius: 2px;
-}
-
-/* Monaco editor sizing */
+/* Monaco editor container sizing */
 .monaco-editor {
     width: 100%;
-    height: calc(100% - 40px); /* Adjust based on your header height */
-    position: relative !important;
-    overflow: hidden;
+    height: calc(100% - 40px);
+}
+
+/* Prevent text selection during drag */
+body.no-select {
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* Editor headers */
