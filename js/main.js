@@ -717,7 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let linesOutput = [];
         let currentLine = '';
         let indentLevel = 0;
-        let contextStack = []; // Track context: 'object', 'array', 'paren', 'functionArgs'
+        let contextStack = []; // Track context: 'object', 'array', 'paren', 'functionArgs', 'builtinFuncArgs'
         let lastTokenWasNewline = true; // Start assuming a newline
 
         function getCurrentIndent() {
@@ -769,8 +769,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 indentLevel = Math.max(0, indentLevel - 1); // Decrease indent level *before* placing the token
                 const opening = token === '}' ? '{' : (token === ']' ? '[' : '(');
                 if (prevToken !== opening) { // Add newline before closing unless empty {} [] ()
-                    // Exception: No newline before ) in function args
-                    if (!(token === ')' && aboutToPopContext === 'functionArgs')) {
+                    // Exception: No newline before ) in function args OR built-in function args
+                    if (!(token === ')' && (aboutToPopContext === 'functionArgs' || aboutToPopContext === 'builtinFuncArgs'))) {
                         needsNewlineBefore = true;
                     }
                 }
@@ -831,7 +831,10 @@ document.addEventListener('DOMContentLoaded', function() {
                      contextStack.push(pushedContext);
                 } else { // token === '('
                     // Check if it's a function call
-                    if (prevToken === 'function' || prevToken === 'lambda') {
+                    if (prevToken.startsWith('$')) { // Check for built-in function like $lowercase
+                        pushedContext = 'builtinFuncArgs';
+                        contextStack.push(pushedContext);
+                    } else if (prevToken === 'function' || prevToken === 'lambda') { // Check for user function
                         pushedContext = 'functionArgs';
                         contextStack.push(pushedContext);
                     } else {
@@ -842,8 +845,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const closing = token === '}' ? '}' : (token === ']' ? ']' : ')');
                 if (nextToken !== closing) { // Add newline after opening unless empty {} [] ()
-                    // Exception: No newline after ( in function args
-                    if (!(token === '(' && pushedContext === 'functionArgs')) {
+                    // Exception: No newline after ( in function args OR built-in function args
+                    if (!(token === '(' && (pushedContext === 'functionArgs' || pushedContext === 'builtinFuncArgs'))) {
                         needsNewlineAfter = true;
                     }
                 }
