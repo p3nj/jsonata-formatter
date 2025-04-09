@@ -738,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let prevToken = tokens[i - 1] || '';
             let currentContext = contextStack.length > 0 ? contextStack[contextStack.length - 1] : null;
 
-            // --- Handle Comments ---
+            // --- Handle Comments --- 
             if (token.startsWith('/*')) {
                 if (!lastTokenWasNewline && currentLine.trim()) {
                     pushLine(); // Push existing line before block comment
@@ -758,7 +758,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  linesOutput.push(getCurrentIndent() + token);
                  lastTokenWasNewline = true;
                  currentLine = '';
-                 continue;
+                continue;
             }
 
             // --- Pre-token Newlines/Indentation ---
@@ -797,17 +797,21 @@ document.addEventListener('DOMContentLoaded', function() {
                  needsSpaceBefore = true; // Default to adding space, then remove exceptions
 
                  // Exceptions: No space BEFORE these tokens
-                 if (['.', ',', ';', ')', ']', '}'].includes(token)) {
+                 if (['.', ',', ';', ')', ']', '}', '@', '#'].includes(token)) {
                      needsSpaceBefore = false;
                  }
                  // Exceptions: No space AFTER these tokens
-                 if (['(', '[', '{', '.', '$', '$$'].includes(lastNonSpaceChar)) {
+                 if (['(', '[', '{', '.', '$', '$$', '-'].includes(lastNonSpaceChar)) {
                      needsSpaceBefore = false;
                  }
                  // Special cases for function calls and predicates
                  if (token === '(' && /^[a-zA-Z_][w$]*$/.test(prevToken)) needsSpaceBefore = false; // Function call
-                 if (token === '[' && /[w$)\]]$/.test(prevToken)) needsSpaceBefore = false; // Predicate/Index
-                 // Exception: No space if last char was already a space (added explicitly)
+                 if (token === '[' && /[w$)\\]]$/.test(prevToken)) needsSpaceBefore = false; // Predicate/Index
+                 // Special case for built-in function calls
+                 if (token === '(' && prevToken.startsWith('$')) needsSpaceBefore = false; // Built-in Function call
+                 // Special case for function/lambda keywords
+                 if (token === '(' && (prevToken === 'function' || prevToken === 'lambda')) needsSpaceBefore = false; // function()/lambda()
+                 // Exception: Remove space if last char was already a space (added explicitly, e.g., after comma)
                  if (lastChar === ' ') {
                      needsSpaceBefore = false;
                  }
@@ -837,7 +841,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else if (prevToken === 'function' || prevToken === 'lambda') { // Check for user function
                         pushedContext = 'functionArgs';
                         contextStack.push(pushedContext);
-                    } else {
+                } else {
                         pushedContext = 'paren';
                         contextStack.push(pushedContext);
                     }
@@ -864,12 +868,16 @@ document.addEventListener('DOMContentLoaded', function() {
                  // Explicitly add space ONLY after colon (before is handled by needsSpaceBefore)
                  currentLine += ' ';
             }
-
-            // Add space after most operators and keywords if not followed by a newline
+            // Check for operators needing space after
             else if (['and', 'or', ':=', '=', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '?', '~>'].includes(token)) {
-                // Add space after operator if not followed by newline
-                if (!needsNewlineAfter) {
+                // Exclude single-char symbols like @, # from getting automatic space after
+                if (!needsNewlineAfter && !(token === '-' && /^d/.test(nextToken)) ) {
                     currentLine += ' ';
+                }
+            } else if (token === '@' || token === '#') {
+                // Add space only if followed by variable or identifier and no newline
+                if (!needsNewlineAfter && (nextToken.startsWith('$') || /^\\w/.test(nextToken))) { // Use simple \\w test for identifier
+                     currentLine += ' ';
                 }
             } else if (['function', 'lambda', 'if', 'then', 'else'].includes(token)) {
                 // Add space after keyword unless it's function/lambda followed by ( OR followed by newline
