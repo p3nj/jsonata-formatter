@@ -1,0 +1,362 @@
+/* Theme-specific styles for JSONata Formatter UI */
+
+/* === LIGHT THEME === */
+body.theme-light {
+    --bg-color: #f5f5f5;
+    --text-color: #333;
+    --header-bg: #e0e0e0;
+    --header-text: #333;
+    --border-color: #ccc;
+    --divider-color: #ddd;
+    --button-bg: #f1f1f1;
+    --button-text: #333;
+    --button-hover: #e0e0e0;
+    --button-primary-bg: #0078d7;
+    --button-primary-text: white;
+    --button-primary-hover: #006cc1;
+    --button-secondary-bg: #dddddd;
+    --button-secondary-text: #333;
+    --button-secondary-hover: #c9c9c9;
+    --validation-bg: #f8f8f8;
+    --validation-border: #ddd;
+    --modal-bg: #fff;
+    --modal-header: #f1f1f1;
+    --notification-info-bg: #e8f4fd;
+    --notification-success-bg: #dff6dd;
+    --notification-error-bg: #fde7e9;
+    --input-bg: #fff;
+    --input-border: #ccc;
+    --input-focus-border: #0078d7;
+    --footer-bg: #e0e0e0;
+    --footer-text: #333;
+    --history-item-hover: #f0f0f0;
+    --scrollbar-track: #f1f1f1;
+    --scrollbar-thumb: #c1c1c1;
+    --scrollbar-thumb-hover: #a0a0a0;
+}
+
+/* === DARK THEME === */
+body.theme-dark {
+    --bg-color: #1e1e1e;
+    --text-color: #d4d4d4;
+    --header-bg: #252526;
+    --header-text: #d4d4d4;
+    --border-color: #454545;
+    --divider-color: #454545;
+    --button-bg: #3c3c3c;
+    --button-text: #d4d4d4;
+    --button-hover: #505050;
+    --button-primary-bg: #0e639c;
+    --button-primary-text: white;
+    --button-primary-hover: #1177bb;
+    --button-secondary-bg: #3c3c3c;
+    --button-secondary-text: #d4d4d4;
+    --button-secondary-hover: #505050;
+    --validation-bg: #252526;
+    --validation-border: #454545;
+    --modal-bg: #252526;
+    --modal-header: #333333;
+    --notification-info-bg: #063b49;
+    --notification-success-bg: #0e392c;
+    --notification-error-bg: #5a1d1d;
+    --input-bg: #3c3c3c;
+    --input-border: #6b6b6b;
+    --input-focus-border: #0e639c;
+    --footer-bg: #252526;
+    --footer-text: #d4d4d4;
+    --history-item-hover: #2a2a2a;
+    --scrollbar-track: #1e1e1e;
+    --scrollbar-thumb: #424242;
+    --scrollbar-thumb-hover: #4f4f4f;
+}
+
+/* === HIGH CONTRAST THEME === */
+body.theme-hc {
+    --bg-color: #000;
+    --text-color: #fff;
+    --header-bg: #000;
+    --header-text: #fff;
+    --border-color: #6fc3df;
+    --divider-color: #6fc3df;
+    --button-bg: #000;
+    --button-text: #fff;
+    --button-hover: #010080;
+    --button-primary-bg: #0e70c0;
+    --button-primary-text: #fff;
+    --button-primary-hover: #0090f1;
+    --button-secondary-bg: #000;
+    --button-secondary-text: #fff;
+    --button-secondary-hover: #010080;
+    --validation-bg: #000;
+    --validation-border: #6fc3df;
+    --modal-bg: #000;
+    --modal-header: #000;
+    --notification-info-bg: #0e70c0;
+    --notification-success-bg: #008000;
+    --notification-error-bg: #a80000;
+    --input-bg: #000;
+    --input-border: #6fc3df;
+    --input-focus-border: #0e70c0;
+    --footer-bg: #000;
+    --footer-text: #fff;
+    --history-item-hover: #010080;
+    --scrollbar-track: #000;
+    --scrollbar-thumb: #6fc3df;
+    --scrollbar-thumb-hover: #0e70c0;
+}
+
+/* Apply CSS variables to UI elements with increased specificity */
+/* General body styling */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Direct styling for specific theme classes with !important */
+body.theme-light {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color) !important;
+}
+
+body.theme-dark {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color) !important;
+}
+
+body.theme-hc {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color) !important;
+}
+
+/* Header styling with increased specificity */
+body.theme-light header {
+    background-color: var(--header-bg) !important;
+    color: var(--header-text) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+body.theme-dark header {
+    background-color: var(--header-bg) !important;
+    color: var(--header-text) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+body.theme-hc header {
+    background-color: var(--header-bg) !important;
+    color: var(--header-text) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+/* Footer styling with increased specificity */
+body.theme-light footer {
+    background-color: var(--footer-bg) !important;
+    color: var(--footer-text) !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+body.theme-dark footer {
+    background-color: var(--footer-bg) !important;
+    color: var(--footer-text) !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+body.theme-hc footer {
+    background-color: var(--footer-bg) !important;
+    color: var(--footer-text) !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+/* General styling for other elements */
+.editor-divider {
+    background-color: var(--divider-color);
+}
+
+.editor-header {
+    background-color: var(--header-bg);
+    color: var(--header-text);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Theme-specific editor header styling */
+body.theme-light .editor-header {
+    background-color: var(--header-bg) !important;
+    color: var(--header-text) !important;
+}
+
+body.theme-dark .editor-header {
+    background-color: var(--header-bg) !important;
+    color: var(--header-text) !important;
+}
+
+body.theme-hc .editor-header {
+    background-color: var(--header-bg) !important;
+    color: var(--header-text) !important;
+}
+
+/* Button styling */
+button, .icon-btn {
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border: 1px solid var(--border-color);
+}
+
+button:hover, .icon-btn:hover {
+    background-color: var(--button-hover);
+}
+
+.primary-btn {
+    background-color: var(--button-primary-bg);
+    color: var(--button-primary-text);
+}
+
+.primary-btn:hover {
+    background-color: var(--button-primary-hover);
+}
+
+.secondary-btn {
+    background-color: var(--button-secondary-bg);
+    color: var(--button-secondary-text);
+}
+
+.secondary-btn:hover {
+    background-color: var(--button-secondary-hover);
+}
+
+/* Validation panel */
+#validation-panel {
+    background-color: var(--validation-bg);
+    border-top: 1px solid var(--validation-border);
+    color: var(--text-color);
+}
+
+.validation-header {
+    background-color: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Theme-specific validation panel styling */
+body.theme-light #validation-panel {
+    background-color: var(--validation-bg) !important;
+}
+
+body.theme-light .validation-header {
+    background-color: var(--header-bg) !important;
+}
+
+/* Modal styles */
+.modal {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: var(--modal-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.modal-header {
+    background-color: var(--modal-header);
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Light theme specifics for modals */
+body.theme-light .modal-content {
+    background-color: var(--modal-bg) !important;
+    color: var(--text-color) !important;
+}
+
+body.theme-light .modal-header {
+    background-color: var(--modal-header) !important;
+    color: var(--text-color) !important;
+}
+
+/* Notifications */
+.notification {
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.notification.info {
+    background-color: var(--notification-info-bg);
+}
+
+.notification.success {
+    background-color: var(--notification-success-bg);
+}
+
+.notification.error {
+    background-color: var(--notification-error-bg);
+}
+
+/* Form elements */
+input[type="text"], 
+input[type="number"], 
+select {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--input-border);
+}
+
+input[type="text"]:focus, 
+input[type="number"]:focus, 
+select:focus {
+    border-color: var(--input-focus-border);
+}
+
+body.theme-light input[type="text"], 
+body.theme-light input[type="number"], 
+body.theme-light select {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+}
+
+/* History items */
+.history-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.history-item:hover {
+    background-color: var(--history-item-hover);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Additional styling for the example buttons */
+body.theme-light .example-btn {
+    background-color: var(--button-bg) !important;
+    color: var(--button-text) !important;
+}
+
+body.theme-light .example-btn:hover {
+    background-color: var(--button-hover) !important;
+}
+
+/* Ensure anchors in footer are properly styled */
+body.theme-light footer a {
+    color: var(--button-primary-bg) !important;
+}
+
+body.theme-dark footer a {
+    color: var(--button-primary-text) !important;
+}
+
+body.theme-hc footer a {
+    color: var(--button-primary-text) !important;
+}

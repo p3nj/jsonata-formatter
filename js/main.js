@@ -8,13 +8,6 @@ document.addEventListener('DOMContentLoaded', function() {
         fontSize: 12
     };
 
-    // Example JSONata expressions
-    const examples = {
-        simple: '/* Simple Example */\n$sum([1,2,3,4]) & " is the sum"',
-        complex: '/* Complex Example */\n$map(\n  [1,2,3,4,5],\n  function($v) {\n    $v * 2\n  }\n)',
-        function: '/* Function Example */\n(\n  $double := function($x) { $x * 2 };\n  $sum(\n    $map([1,2,3,4,5], $double)\n  )\n)'
-    };
-
     // Load settings from localStorage if available
     if (localStorage.getItem('jsonata-formatter-settings')) {
         try {
