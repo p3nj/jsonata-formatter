@@ -705,111 +705,312 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // The actual formatting implementation
     function formatExpression(expression, options = {}) {
-        // Default options
         const defaultOptions = {
             indentSize: 2,
             maxLineLength: 80,
             bracesOnNewLine: false
         };
-        
-        options = Object.assign({}, defaultOptions, options);
-        
-        try {
-            // Basic formatting implementation
-            let formatted = expression
-                // Add newlines after semicolons
-                .replace(/;/g, ';\n')
-                // Add space around operators
-                .replace(/([+\-*\/=<>!&|])/g, ' $1 ')
-                // Fix extra spaces
-                .replace(/\s+/g, ' ')
-                // Handle blocks
-                .replace(/{/g, options.bracesOnNewLine ? '\n{\n' : ' {\n')
-                .replace(/}/g, '\n}')
-                // Add space after commas
-                .replace(/,([^\s])/g, ', $1')
-                // Improve path expressions formatting
-                .replace(/\./g, '.');
-            
-            // Handle indentation
-            const lines = formatted.split('\n');
-            let indent = 0;
-            let result = [];
-            
-            for (let i = 0; i < lines.length; i++) {
-                let line = lines[i].trim();
-                if (!line) continue;
-                
-                // Adjust indent for closing braces
-                if (line.startsWith('}')) {
-                    indent = Math.max(0, indent - 1);
-                }
-                
-                // Add line with proper indentation
-                const indentation = ' '.repeat(indent * options.indentSize);
-                
-                // Handle line length
-                if (line.length + indentation.length > options.maxLineLength) {
-                    // Try to break the line at logical points
-                    line = breakLongLine(line, options.maxLineLength - indentation.length, indent * options.indentSize);
-                }
-                
-                if (Array.isArray(line)) {
-                    // If line was broken into multiple lines
-                    for (let j = 0; j < line.length; j++) {
-                        const subIndent = j > 0 ? indentation + ' '.repeat(options.indentSize) : indentation;
-                        result.push(subIndent + line[j]);
-                    }
-                } else {
-                    result.push(indentation + line);
-                }
-                
-                // Adjust indent for opening braces
-                if (typeof line === 'string' && line.includes('{')) {
-                    indent++;
-                }
-            }
-            
-            return result.join('\n');
-        } catch (err) {
-            console.error("Error in formatter:", err);
-            throw err;
-        }
-    }
+        options = { ...defaultOptions, ...options };
+        const indentChar = ' '.repeat(options.indentSize);
 
-    // Helper function to break long lines
-    function breakLongLine(line, maxLength, baseIndent) {
-        // Simple implementation - in a real formatter this would be more sophisticated
-        if (line.length <= maxLength) return line;
-        
-        // Try to break at logical points like operators
-        const breakPoints = [',', ';', ' && ', ' || ', ' + ', ' - ', ' * ', ' / '];
-        
-        for (const breakPoint of breakPoints) {
-            if (line.includes(breakPoint)) {
-                const parts = line.split(breakPoint);
-                let result = [];
-                let currentLine = parts[0] + breakPoint;
-                
-                for (let i = 1; i < parts.length; i++) {
-                    if (currentLine.length + parts[i].length > maxLength) {
-                        result.push(currentLine);
-                        currentLine = parts[i];
-                    } else {
-                        currentLine += parts[i] + (i < parts.length - 1 ? breakPoint : '');
-                    }
-                }
-                
-                if (currentLine) {
-                    result.push(currentLine);
-                }
-                
-                return result;
+        // Tokenizer V4: Refined operators, keywords, identifiers
+        const tokenRegex = /(".*?"|'.*?'|\/\*[\s\S]*?\*\/|\/\/.*$|\${1,2}\w*|\b(?:true|false|null|and|or|in|function|lambda|if|then|else)\b|:=|!=|<=|>=|&&|\|\||[\{\}\[\]\(\);,\?\.\:!=+\-*\/&|<>%@#$]|\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?|\w+)/gm;
+        const tokens = expression.match(tokenRegex) || [];
+
+        let linesOutput = [];
+        let currentLine = '';
+        let indentLevel = 0;
+        let contextStack = []; // Track context: 'object', 'array', 'paren', 'jsonata', 'predicate'
+
+        function getCurrentIndent() {
+            return indentChar.repeat(indentLevel);
+        }
+
+        function pushLine(line) {
+            if (line.trim()) { // Only push non-empty lines
+                linesOutput.push(line);
             }
         }
-        
-        // If no logical break point found, just return the original line
-        return line;
+
+        // Helper to find the last non-comment/whitespace token *pushed* or on current line
+        function findLastMeaningfulContent() {
+            if (currentLine.trim()) {
+                // Get last word from current line content (after indent)
+                const lineContent = currentLine.substring(getCurrentIndent().length);
+                const words = lineContent.trim().split(/\\s+/);
+                if (words.length > 0) return words[words.length - 1];
+            }
+            // If current line is empty/only indent, check previous lines
+            for (let k = linesOutput.length - 1; k >= 0; k--) {
+                const prevLineContent = linesOutput[k].trim();
+                if (prevLineContent && !prevLineContent.startsWith('//') && !prevLineContent.startsWith('/*')) {
+                    const words = prevLineContent.split(/\\s+/);
+                     if (words.length > 0) return words[words.length - 1];
+                }
+            }
+            return ''; // Should not happen in valid code with delimiters
+        }
+
+        for (let i = 0; i < tokens.length; i++) {
+            let token = tokens[i].trim();
+            let nextToken = (tokens[i + 1] || '').trim();
+            let prevTokenData = tokens[i - 1] || '';
+            let prevToken = prevTokenData.trim();
+
+            if (!token) continue; // Skip empty tokens
+
+            let currentIndentStr = getCurrentIndent();
+            let currentContext = contextStack.length > 0 ? contextStack[contextStack.length - 1] : 'jsonata';
+
+            // --- Handle Comments --- 
+            if (token.startsWith('/*')) {
+                if (currentLine.trim()) pushLine(currentLine);
+                currentLine = '';
+                let commentLines = token.split('\n');
+                pushLine(currentIndentStr + commentLines[0].trim());
+                for (let j = 1; j < commentLines.length; j++) {
+                    let leadingSpace = prevTokenData.match(/^(\s*)/) ? prevTokenData.match(/^(\s*)/)[0] : currentIndentStr;
+                    pushLine(leadingSpace + commentLines[j].trim());
+                }
+                currentLine = currentIndentStr;
+                continue;
+            }
+            if (token.startsWith('//')) {
+                currentLine += (currentLine.endsWith(' ') ? '' : ' ') + token;
+                pushLine(currentLine);
+                currentLine = currentIndentStr;
+                continue;
+            }
+
+            // --- Handle Indentation --- 
+            if (token === '}' || token === ']' || token === ')') { // Closing Delimiter
+                let lastContent = findLastMeaningfulContent();
+
+                indentLevel = Math.max(0, indentLevel - 1);
+                currentIndentStr = getCurrentIndent();
+                let poppedContext = contextStack.pop();
+                currentContext = contextStack.length > 0 ? contextStack[contextStack.length - 1] : 'jsonata';
+
+                // Add newline before closing delimiter if block wasn't empty
+                // Check last *actual content*, not just previous token or current line whitespace
+                const openingDelimiter = token === '}' ? '{' : (token === ']' ? '[' : '(');
+                // If current line has content beyond indent OR if last meaningful pushed token wasn't the opener
+                if ((currentLine.trim() !== '' && currentLine.trim() !== currentIndentStr) ||
+                    (currentLine.trim() === '' && lastContent !== openingDelimiter))
+                {
+                    pushLine(currentLine);
+                    currentLine = currentIndentStr; // Start the new line with the correct (decremented) indent
+                }
+                 // Special case: If closing a predicate ']', stay on same line if possible before next step .
+                if (poppedContext === 'predicate' && nextToken === '.') {
+                   // Handled by spacing rules below 
+                } else if (poppedContext === 'predicate') {
+                   // If predicate doesn't end line, handle normally 
+                }
+            }
+
+            // --- Calculate Spacing --- 
+            const isBinaryOp = (t) => /^[!=<>+\-*\/&|%]+$/.test(t) || ['and', 'or', 'in', ':='].includes(t);
+            let spaceBefore = false;
+            if (currentLine && !currentLine.endsWith(currentIndentStr) && !currentLine.endsWith(' ')) {
+                spaceBefore = true;
+                if (['.', ',', ';', ')', ']', '}'].includes(token)) spaceBefore = false;
+                if (['(', '[', '{', '.', '$', '$$'].includes(prevToken)) spaceBefore = false;
+                if (token === '[' && !['{', '[', '(', ',', ';', ':=', '+', '-', '*', '/', '=', '<', '>', '&', '|', '?', ':', 'and', 'or', 'in'].includes(prevToken)) spaceBefore = false; // Array access/predicate
+                if (token === '?' && prevToken === ')') spaceBefore = true; // Space before ? after ) e.g. (cond) ?
+                if (isBinaryOp(token)) {
+                    if (!(currentContext === 'predicate' && token === '=')) {
+                        spaceBefore = true;
+                    }
+                }
+                if (isBinaryOp(prevToken)) {
+                    if (!(currentContext === 'predicate' && prevToken === '=')) {
+                        if (!['[', '.', ')', ']'].includes(token)) { // Avoid space if next is bracket/dot
+                             spaceBefore = true;
+                        }
+                    } else if (token !== '=') {
+                         // If prev was = inside predicate, add space only if current is not also =
+                         spaceBefore = true;
+                    }
+                }
+                if ((token === '?' || token === ':') && currentContext !== 'object') spaceBefore = true; // Space around ternary ? and :
+                if ((prevToken === '?' || prevToken === ':') && currentContext !== 'object') spaceBefore = true; // Space after ternary ? and :
+            }
+
+            // --- Check Line Length and Handle Breaking --- 
+            const isOperator = (t) => /^[!=<>+\-*\/&|%]+$/.test(t) || ['and', 'or', 'in', ':='].includes(t);
+            const isFunctionCall = (t) => /^\$[a-zA-Z_]\w*$/.test(t);
+            const isLiteral = (t) => /^(".*?"|'.*?'|\d|true|false|null)/.test(t);
+
+            const noBreakContexts = ['predicate', 'functionArgs', 'array', 'groupingParen'];
+
+            let tokenToAdd = (spaceBefore ? ' ' : '') + token;
+            let potentialNewLine = false; // Reintroduce variable
+
+            // Break line logic: Only if NOT inside a no-break context and line exceeds max length
+            if (!noBreakContexts.includes(currentContext) &&
+                currentLine.length + tokenToAdd.length > options.maxLineLength)
+            {
+                // --- Reinstate original line breaking logic --- 
+                let breakPointFound = false;
+                let continuationIndent = indentChar.repeat(indentLevel + 2);
+
+                // 1. Try to break *after* a relevant operator on the current line
+                const breakAfterOps = ['?', ':', '&', '|', ' and ', ' or ', '+', '-', ':='];
+                for (let j = breakAfterOps.length - 1; j >= 0; j--) {
+                    const op = breakAfterOps[j];
+                    let searchString = op.trim().length === op.length ? op + ' ' : op;
+                    let breakPos = currentLine.lastIndexOf(searchString);
+                    // Ensure break happens after the indent
+                    if (breakPos > currentIndentStr.length && breakPos < currentLine.length - 1) { 
+                        pushLine(currentLine.substring(0, breakPos + searchString.length));
+                        currentLine = continuationIndent + currentLine.substring(breakPos + searchString.length).trim();
+                        breakPointFound = true;
+                        break;
+                    }
+                }
+
+                // 2. Fallback: Try breaking at the last space before the limit
+                if (!breakPointFound) {
+                    let breakPos = currentLine.lastIndexOf(' ', options.maxLineLength - continuationIndent.length);
+                    // Ensure break happens after the indent
+                    if (breakPos > currentIndentStr.length) { 
+                        pushLine(currentLine.substring(0, breakPos));
+                        currentLine = continuationIndent + currentLine.substring(breakPos + 1).trim();
+                        breakPointFound = true;
+                    }
+                }
+
+                // 3. Hard break (last resort): Break before the current token
+                if (!breakPointFound && currentLine.trim() !== currentIndentStr) { // Avoid break if line is essentially empty
+                    pushLine(currentLine);
+                    currentLine = continuationIndent + token.trim();
+                    tokenToAdd = token.trim(); 
+                    potentialNewLine = true; // Set flag when hard break happens
+                    spaceBefore = false;
+                    // Need to re-evaluate spacing for the *next* token based on this forced break
+                } else if (breakPointFound) {
+                    // If we broke mid-line, the token still needs adding to the new currentLine
+                    spaceBefore = false; // Don't add space at start of continuation line
+                    tokenToAdd = (spaceBefore ? ' ' : '') + token.trim();
+                } else {
+                    // No break happened, proceed as normal (tokenToAdd already calculated)
+                }
+                // --- End of reinstated line breaking logic --- 
+            }
+
+            // Append token (potentially starting a new line)
+            if (!potentialNewLine) {
+                currentLine += tokenToAdd;
+            }
+
+            // --- Handle Post-Token Actions (Indent Increase, Newlines) --- 
+            let newLineAfter = false;
+            if (token === '{') { // Opening brace
+                indentLevel++;
+                contextStack.push('object');
+                if (!['}'].includes(nextToken)) newLineAfter = true;
+            } else if (token === '(') { // Opening paren
+                indentLevel++;
+                // Check if it follows a function name
+                let isFunc = isFunctionCall(prevToken);
+                if (isFunc) {
+                    contextStack.push('functionArgs');
+                } else {
+                    if (contextStack[contextStack.length - 1] === 'paren') { // Check if it was paren
+                        contextStack.pop(); // Pop it only if it was paren
+                    }
+                    contextStack.push('groupingParen'); // Push the correct context
+                }
+                // Suppress newline after opening paren/bracket in no-break contexts unless next is {
+                let newContext = contextStack[contextStack.length - 1]; // Get the actual context pushed
+                if (noBreakContexts.includes(newContext) && !['{', '['].includes(nextToken)) { // Include '[' check
+                    newLineAfter = false;
+                } else if (newContext === 'paren' && !['}', ')'].includes(nextToken)) { // Fallback for simple () grouping if needed
+                    newLineAfter = true;
+                }
+            } else if (token === '[') { // Opening bracket for predicate/index
+                 indentLevel++;
+                 // Determine context: array or predicate
+                 if (nextToken && (isLiteral(nextToken) || nextToken.startsWith('$') || ['{', '['].includes(nextToken))) {
+                     contextStack.push('array');
+                 } else {
+                     contextStack.push('predicate');
+                 }
+                 // Suppress newline after opening bracket in predicate/array context unless followed by {
+                 if (nextToken === '{') {
+                      newLineAfter = true;
+                 } else {
+                      newLineAfter = false;
+                 }
+            } else if (token === ']') {
+                // Check next token to prevent inappropriate line breaks after ]
+                if (nextToken && (['[', '.', '?', ','].includes(nextToken) || isOperator(nextToken))) {
+                    // Suppress newline if followed by specific tokens
+                    newLineAfter = false;
+                     // Ensure no space before next [ or .
+                     if (['[', '.'].includes(nextToken)) {
+                        // We need to ensure the *next* token processed has spaceBefore=false
+                        // This is handled by the general spacing rules, but double check
+                     } else if (nextToken === ',' && currentLine.endsWith(']')){
+                         // Add comma directly after bracket, space handled later
+                          currentLine += tokenToAdd; // Add the ]
+                          tokenToAdd = ''; // Prevent adding it again
+                          currentLine += nextToken; // Add the comma
+                          i++; // Skip next token processing
+                          token = nextToken;
+                          nextToken = (tokens[i + 1] || '').trim();
+                          spaceBefore = true; // Usually space after comma
+                     } else {
+                         // Keep space for ? or operators if added by spacing rules
+                     }
+                } else {
+                    // Default behavior for ] might involve newline if it ends a statement/line logically
+                    // Previously handled suppression, now consider forcing newline if needed?
+                    // If context was predicate and next isn't chain/op, consider newline?
+                }
+            } else if (token === ')') { // Closing Paren
+                // Check if we are closing function arguments
+                 if (currentContext === 'functionArgs') {
+                    // Default to NO newline after function args close, let next token handle spacing/breaks
+                    newLineAfter = false;
+                 } else {
+                      // Regular closing paren, rely on other rules (e.g. line break, comma)
+                 }
+            } else { // Other tokens
+                 let currentContext = contextStack.length > 0 ? contextStack[contextStack.length - 1] : 'jsonata';
+                 // Ensure newline after comma in object context, respect simplified paren context for arrays/predicates
+                 if (token === ',' && (currentContext === 'object' /* || currentContext === 'array' */)) { 
+                    // Only add newline after comma in object context, NOT inside function args
+                    if (currentContext !== 'functionArgs') {
+                        newLineAfter = true;
+                    }
+                 } else if (token === ';') {
+                      newLineAfter = true;
+                 }
+                 if (token === '?' && nextToken === '{') {
+                     newLineAfter = false;
+                 }
+             }
+
+             if (newLineAfter) {
+                 // Suppress newline after opening predicate bracket unless followed by {
+                 if (!(token === '[' && contextStack[contextStack.length-1] === 'predicate' && nextToken !== '{')) {
+                     pushLine(currentLine);
+                     currentLine = getCurrentIndent();
+                 }
+             } else if (!potentialNewLine && (token === ',' || token === ';') && !currentLine.endsWith(' ')) {
+                 // Add space after comma/semicolon if no newline followed
+                 currentLine += ' ';
+             }
+        }
+
+        // Add the last line if it has content
+        if (currentLine.trim()) {
+            pushLine(currentLine);
+        }
+
+        return linesOutput.join('\n');
     }
 
     // Helper function for temporarily showing notifications

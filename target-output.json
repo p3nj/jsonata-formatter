@@ -1,0 +1,42 @@
+"sections": [{
+  "activity": $wo.woOperations[$i].activity,
+  "identifier": "SEC_Components",
+  "fields": [
+    $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].reservNo ? {
+      "identifier": "CP_ReservationNo",
+      "value": $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].reservNo
+    },
+    $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].material ? {
+      "identifier": "CP_StockCode",
+      "value": $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].material
+    },
+    $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].matlDesc ? {
+      "identifier": "CP_Description",
+      "value": $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].matlDesc
+    },
+    $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].requirementQuantity ? {
+      "identifier": "CP_QtyOrder",
+      "value": $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].requirementQuantity
+    },
+    $wo.woOperations[$i].unloadPt ? {
+      "identifier": "CP_UnloadingPoint",
+      "value": $wo.woOperations[$i].unloadPt
+    },
+    unknown ? {
+      "identifier": "CP_DelieveryDate",
+      "value": null
+    },
+    unknown ? {
+      "identifier": "CP_SerialNumber",
+      "value": null
+    },
+    unknown ? {
+      "identifier": "CP_ValuationType",
+      "value": unknown
+    },
+    $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].batch ? {
+      "identifier": "CP_Description",
+      "value": $wo.woComponents[activity = $wo.woOperations[$i].activity][$x].batch
+    }
+  ]
+}]

@@ -1,0 +1,657 @@
+{
+    "data" : [model.data.workOrderDetails @ $wo[].[
+        {
+          "header" : {
+            "assignmentId" : $wo.header.orderid,
+            "title" : $wo.header.shortText != null ? $wo.header.shortText : 
+                $wo.header.orderid,
+            "tenantId" : $$.properties.tenantId,
+            "orgKey" : $$.properties.orgKey,
+            "fieldInstructions" : description,
+            "template" : "WOHGRP",
+            "status" : $wo.header.sysStatus.$substring (
+              0, 3
+            ),
+            "assignmentPointCode" : $wo.header.functLoc,
+            "startDate" : (
+              $startTime := 
+                  $wo.header.basicstart ? $wo.header.basicstart :"00:00:00";
+              $wo.header.startDate & "T" & $startTime & "Z"
+            ),
+            "endDate" : (
+              $endTime := $wo.header.basicFin ? $wo.header.basicFin : "23:59:59";
+              $wo.header.finishDate & "T" & $endTime & "Z"
+            ),
+            "teamName" : $wo.header.plant & "/" & $wo.header.mnWkCtr,
+            "priority" : $wo.header.priority,
+            "isHeader" : true,
+            "revision" : $wo.header.revision
+          },
+          "groups" : [
+            {
+              "name" : "Work Order Header Group",
+              "identifier" : "GRP_WorkOrderHeader",
+              "phase" : "Plan",
+              "instances" : {
+                "name" : "GRP_WorkOrderHeader 1",
+                "identifier" : "Work Order Header 1",
+                "sections" : [
+                  {
+                    "identifier" : "SEC_WorkOrderInfo",
+                    "fields" : [
+                      {
+                        "name" : "Functional Location",
+                        "identifier" : "WOH_FLOC",
+                        "value" : $wo.header.functLoc
+                      }, {
+                        "name" : "Header Short Name",
+                        "identifier" : "WOH_ShortName",
+                        "value" : $wo.header.shortText
+                      }, {
+                        "name" : "Main Work Center",
+                        "identifier" : "WOH_MainWorkCenter",
+                        "value" : $wo.header.mnWkCtr
+                      }, {
+                        "name" : "Work Order Type",
+                        "identifier" : "WOH_WorkOrderType",
+                        "value" : $wo.header.orderType
+                      }, {
+                        "name" : "Earliest Start Date",
+                        "identifier" : "WOH_EarliestStartDate",
+                        "value" : $wo.header.productionStartDate
+                      }, {
+                        "name" : "Latest Start Date",
+                        "identifier" : "WOH_LatestFinishDate",
+                        "value" : $wo.header.productionFinishDate
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }, $wo.woOperations # $i.{
+          "header" : {
+            "assignmentId" : $wo.header.orderid & "_" & activity,
+            /* if description is null, use parent's short text. åçIf that is null too, use the regular assignment Id */
+            "title" : description != null ? description : 
+                $wo.header.shortText !=null ? $wo.header.shortText : 
+                $wo.header.orderid & "_" & activity,
+            "tenantId" : $$.properties.tenantId,
+            "orgKey" : $$.properties.orgKey,
+            "fieldInstructions" : description,
+            "template" : "QRWO",
+            "status" : $wo.header.sysStatus.$substring (
+              0, 3
+            ),
+            "assignmentPointCode" : $wo.header.functLoc,
+            "startDate" : (
+              $startTime := $wo.woOperations[$i
+              ].earlSchedStartTime ? $wo.woOperations[$i
+              ].earlSchedStartTime : "00:00:00";
+              $wo.woOperations[$i
+              ].earlSchedStartDate & "T" & $startTime & "Z"
+            ),
+            "endDate" : (
+              $endTime := $wo.woOperations[$i
+              ].earlSchedFinTime ? $wo.woOperations[$i
+              ].earlSchedFinTime : "23:59:59";
+              $wo.woOperations[$i
+              ].earlSchedFinDate & "T" & $endTime & "Z"
+            ),
+            "teamName" : plant & "/" & workCntr,
+            "priority" : $wo.header.priority,
+            "parentReference" : $wo.header.orderid,
+            "revision" : $wo.header.revision
+          },
+          "groups" : [
+            {
+              "name" : "SAP Work Order Detail Descriptions",
+              "identifier" : "GRP_SAPWorkDescriptions",
+              "phase" : "Plan",
+              "instances" : [$wo.woOperations[$i
+                ].{
+                  "identifier" : "SAP Work Order Detail Descriptions 1",
+                  "sections" : [
+                    {
+                      "activity" : $wo.woOperations[$i
+                      ].activity,
+                      "identifier" : "SEC_Summary",
+                      "fields" : [$wo.header.shortText ? {
+                          "identifier" : "SWD_WorkOrderDescription",
+                          "value" : $wo.header.shortText
+                        }, $wo.woOperations[$i
+                        ].description ? {
+                          "identifier" : "SWD_OperationDescription",
+                          "value" : $wo.woOperations[$i
+                          ].description
+                        }, $wo.header.functLoc ? {
+                          "identifier" : "SWD_FunctionalLocation",
+                          "value" : $wo.header.functLoc
+                        }, $wo.header.equipment ? {
+                          "identifier" : "SWD_Equipment",
+                          "value" : $wo.header.equipment
+                        }, FLOC_Characteristics ? {
+                          "identifier" : "SWD_FLocSafetyConsequence",
+                          "value" : FLOC_Characteristics.CHARACT_DESCR
+                        }, FLOC_Characteristics ? {
+                          "identifier" : "SWD_FLocSafetyConsequenceDesc",
+                          "value" : FLOC_Characteristics.VALUE_CHAR_LONG
+                        }, unkown ? {
+                          "identifier" : "SWD_MAC",
+                          "value" : null
+                        }, $wo.header.productionStartDate ? {
+                          "identifier" : "SWD_PlanStartDate",
+                          "value" : $wo.header.productionStartDate
+                        }, $wo.header.productionFinishDate ? {
+                          "identifier" : "SWD_RequiredBy",
+                          "value" : $wo.header.productionFinishDate
+                        }, unknown ? {
+                          "identifier" : "SWD_PlanReq",
+                          "value" : null
+                        }, $wo.equipmentDetails.equipmentDetails.serge ? {
+                          "identifier" : "SWD_SerialNo",
+                          "value" : $wo.equipmentDetails.equipmentDetails.serge
+                        }, $wo.woOperations[$i
+                        ].durationNormal ? {
+                          "identifier" : "SWD_Duration",
+                          "value" : durationNormal
+                        }, $wo.woOperations[$i
+                        ].workActivity ? {
+                          "identifier" : "SWD_Work",
+                          "value" : $wo.woOperations[$i
+                          ].workActivity
+                        }, $wo.woOperations[$i
+                        ].numberOfCapacities ? {
+                          "identifier" : "SWD_Number",
+                          "value" : $wo.woOperations[$i
+                          ].numberOfCapacities
+                        }, $wo.woOperations[$i
+                        ].grRcpt ? {
+                          "identifier" : "SWD_GoodsRecipient",
+                          "value" : $wo.woOperations[$i
+                          ].grRcpt
+                        }, $wo.priority ? {
+                          "identifier" : "SWD_Priority",
+                          "value" : $wo.priority
+                        }, $wo.header.revision ? {
+                          "identifier" : "SWD_Revision",
+                          "value" : $wo.header.revision
+                        }, $wo.woOpeartionLongtext[$not (
+                            $exists (
+                              activity
+                            )
+                          )
+                        ] ? {
+                          "identifier" : "SWD_WorkOrderHeaderLongText",
+                          "value" : $wo.woOpeartionLongtext[$not (
+                              $exists (
+                                activity
+                              )
+                            )
+                          ].longtext
+                        }, $wo.woOpeartionLongtext[activity = $wo.woOperations[$i
+                          ].activity
+                        ].longtext ? {
+                          "identifier" : "SWD_JobInstruction",
+                          "value" : 
+                                  $wo.woOpeartionLongtext[activity = $wo.woOperations[$i
+                            ].activity
+                          ].longtext
+                        }, $wo.woOperations[$i
+                        ].lrpStart ? {
+                          "identifier" : "SWD_LRPStart",
+                          "value" : ""
+                        }, $wo.woOperations[$i
+                        ].lrpEnd ? {
+                          "identifier" : "SWD_LRPEnd",
+                          "value" : ""
+                        }, $wo.woOperations[$i
+                        ].earlSchedStartDate ? {
+                          "identifier" : "SWD_EarliestDate",
+                          "value" : $wo.woOperations[$i
+                          ].earlSchedStartDate
+                        }, $wo.woOperations[$i
+                        ].plannedDate ? {
+                          "identifier" : "SWD_PlannedDate",
+                          "value" : ""
+                        }, $wo.woOperations[$i
+                        ].lateSchedFinDate ? {
+                          "identifier" : "SWD_LatestCompletionDate",
+                          "value" : $wo.woOperations[$i
+                          ].lateSchedFinDate
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }, (
+              $wo.woComponents[activity = $wo.woOperations[$i
+                ].activity
+              ]
+            ) ? {
+              "name" : "Components",
+              "identifier" : "GRP_Components",
+              "phase" : "Plan",
+              "replace" : true,
+              "instances" : $wo.woComponents[activity = $wo.woOperations[$i
+                ].activity
+              ] # $x[$wo.woComponents[activity = $wo.woOperations[$i
+                  ].activity
+                ][$x
+                ].reservNo != null
+              ].[
+                {
+                  "identifier" : "Components " & $wo.header.orderid & "-" & 
+                      $wo.woOperations[$i
+                  ].activity & "-" & 
+                          $wo.woComponents[activity = $wo.woOperations[$i
+                    ].activity
+                  ][$x
+                  ].material & "-" & 
+                          $wo.woComponents[activity = $wo.woOperations[$i
+                    ].activity
+                  ][$x
+                  ].resItem,
+                  "sections" : [
+                    {
+                      "activity" : $wo.woOperations[$i
+                      ].activity,
+                      "identifier" : "SEC_Components",
+                      "fields" : [$wo.woComponents[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$x
+                        ].reservNo ? {
+                          "identifier" : "CP_ReservationNo",
+                          "value" : 
+                                  $wo.woComponents[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$x
+                          ].reservNo
+                        }, $wo.woComponents[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$x
+                        ].material ? {
+                          "identifier" : "CP_StockCode",
+                          "value" : 
+                                  $wo.woComponents[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$x
+                          ].material
+                        }, $wo.woComponents[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$x
+                        ].matlDesc ? {
+                          "identifier" : "CP_Description",
+                          "value" : 
+                                  $wo.woComponents[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$x
+                          ].matlDesc
+                        }, $wo.woComponents[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$x
+                        ].requirementQuantity ? {
+                          "identifier" : "CP_QtyOrder",
+                          "value" : 
+                                  $wo.woComponents[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$x
+                          ].requirementQuantity
+                        }, $wo.woOperations[$i
+                        ].unloadPt ? {
+                          "identifier" : "CP_UnloadingPoint",
+                          "value" : $wo.woOperations[$i
+                          ].unloadPt
+                        }, unknown ? {
+                          "identifier" : "CP_DelieveryDate",
+                          "value" : null
+                        }, unknown ? {
+                          "identifier" : "CP_SerialNumber",
+                          "value" : null
+                        }, unknown ? {
+                          "identifier" : "CP_ValuationType",
+                          "value" : unknown
+                        }, $wo.woComponents[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$x
+                        ].batch ? {
+                          "identifier" : "CP_Description",
+                          "value" : 
+                                  $wo.woComponents[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$x
+                          ].batch
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }, (
+              $wo.woPrts[activity = $wo.woOperations[$i
+                ].activity and prtCategory = "D"
+              ]
+            ) ? {
+              "name" : "Summary of Attached Documents",
+              "identifier" : "GRP_SummaryOfDocuments",
+              "phase" : "Plan",
+              "replace" : true,
+              "instances" : $wo.woPrts[activity = $wo.woOperations[$i
+                ].activity
+              ] # $y[$wo.woPrts[activity = $wo.woOperations[$i
+                  ].activity
+                ][$y
+                ].documentNumber != null
+              ].[
+                {
+                  "identifier" : "Summary of Document " & $wo.header.orderid & 
+                      "-"& $wo.woOperations[$i
+                  ].activity & "-" & $wo.woPrts[activity = $wo.woOperations[$i
+                    ].activity
+                  ][$y
+                  ].documentNumber,
+                  "sections" : [
+                    {
+                      "activity" : $wo.woOperations[$i
+                      ].activity,
+                      "identifier" : "SEC_SummaryOfDocuments",
+                      "fields" : [$wo.woPrts[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$y
+                        ].documentNumber ? {
+                          "identifier" : "DOC_Document",
+                          "value" : $wo.woPrts[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$y
+                          ].documentNumber
+                        }, $wo.woPrts[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$y
+                        ].documentType ? {
+                          "identifier" : "DOC_DocumentType",
+                          "value" : $wo.woPrts[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$y
+                          ].documentType
+                        }, $wo.woPrts[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$y
+                        ].description ? {
+                          "identifier" : "DOC_DocumentDescription",
+                          "value" : $wo.woPrts[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$y
+                          ].description
+                        }, $wo.documents.HeaderAttachments {
+                          "identifier" : "DOC_GOSAttachments",
+                          "value" : 
+                              $wo.documents.HeaderAttachments.HeaderAttachments
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }, (
+              $wo.WO_permits[activity = $wo.woOperations[$i
+                ].activity
+              ]
+            ) ? {
+              "name" : "Work Permits",
+              "identifier" : "GRP_Permits",
+              "phase" : "Plan",
+              "replace" : true,
+              "instances" : $wo.WO_permits[activity = $wo.woOperations[$i
+                ].activity
+              ].[
+                {
+                  "identifier" : "Summary of Document " & $wo.header.orderid & 
+                      "-"& $wo.woOperations[$i
+                  ].activity & "-" & $wo.WO_permits[activity = $wo.woOperations[$i
+                    ].activity
+                  ][$y
+                  ].PERMIT,
+                  "sections" : [
+                    {
+                      "activity" : $wo.woOperations[$i
+                      ].activity,
+                      "identifier" : "SEC_SummaryOfDocuments",
+                      "fields" : [$wo.WO_permits[activity = $wo.woOperations[$i
+                          ].activity
+                        ][$y
+                        ].PERMIT ? {
+                          "identifier" : "PER_AcknowledgePermits",
+                          "value" : $wo.WO_permits[activity = $wo.woOperations[$i
+                            ].activity
+                          ][$y
+                          ].PERMIT
+                        }, unknown ? {
+                          "identifier" : "PER_WRAttached",
+                          "value" : unknown
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }, {
+              "name" : "Measuring Points",
+              "identifier" : $$.properties.MeasuringPoints,
+              "phase" : "Obzerv",
+              "replace" : true,
+              "instances" : $append (
+                (
+                  $wo.functionalLocationDetails.flocMeasuringPoints or 
+                      $wo.woOperations[$i
+                  ].$wo.equipmentDetails.equipmentmeasuringpoint or 
+                      $wo.woMeasuringPoints[activity = $wo.woOperations[$i
+                    ].activity
+                  ]
+                ) ? [$wo.woOperations[$i
+                  ].$wo.functionalLocationDetails.flocMeasuringPoints, $wo.
+                      woMeasuringPoints[activity = $wo.woOperations[$i
+                    ].activity
+                  ]
+                ].[
+                  {
+                    "identifier" : measuringPoint,
+                    "sections" : [
+                      {
+                        "activity" : $wo.woOperations[$i
+                        ].activity,
+                        "identifier" : "SEC_MeasuringPoints",
+                        "fields" : [measuringPoint ? {
+                            "identifier" : "MP_MeasuringPoints",
+                            "value" : measuringPoint
+                          }, description ? {
+                            "identifier" : "MP_MeasuringPointsDesc",
+                            "value" : description
+                          }, funcLocation ? {
+                            "identifier" : "MP_FLOC",
+                            "value" : funcLocation
+                          }, lastReading ? {
+                            "identifier" : "MP_LastReading",
+                            "value" : lastReading
+                          }, uom ? {
+                            "identifier" : "MP_UOM",
+                            "value" : uom
+                          }, upperMeasurementRange ? {
+                            "identifier" : "MP_UpperValue",
+                            "value" : upperMeasurementRange
+                          }, lowerMeasurementRange ? {
+                            "identifier" : "MP_LowerValue",
+                            "value" : lowerMeasurementRange
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ], $wo.woOperations[$i
+                ].$wo.equipmentDetails.equipmentmeasuringpoint.[
+                  {
+                    "identifier" : measuringPoint,
+                    "sections" : [
+                      {
+                        "activity" : $wo.woOperations[$i
+                        ].activity,
+                        "identifier" : "SEC_MeasuringPoints",
+                        "fields" : [measuringPoint ? {
+                            "identifier" : "MP_MeasuringPoints",
+                            "value" : measuringPoint
+                          }, description ? {
+                            "identifier" : "MP_MeasuringPointsDesc",
+                            "value" : description
+                          }, equipment ? {
+                            "identifier" : "MP_FLOC",
+                            "value" : equipment
+                          }, lastReading ? {
+                            "identifier" : "MP_LastReading",
+                            "value" : lastReading
+                          }, uom ? {
+                            "identifier" : "MP_UOM",
+                            "value" : uom
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              )
+            }, (
+              $wo.woPrts
+            ) ? $wo.woPrts # $z[prtStatus = "Obzervr"
+            ].{
+              "name" : prtNumber,
+              "identifier" : $replace (
+                prtNumber, " ", "-"
+              ),
+              "phase" : "Obzerv"
+            }, (
+              $wo.notificationdetails.notificationItems.notifNo
+            ) ? {
+              "name" : "Part Damage Cause",
+              "identifier" : $$.properties.PartsDamageCause,
+              "phase" : "Complete",
+              "instances" : $wo.woOperations[$i
+              ].$wo.notificationdetails.notificationItems @ $pd[$not (
+                  $exists (
+                    $lookup (
+                      $pd, "deleteFlag"
+                    )
+                  )
+                ) or $pd.deleteFlag != "X"
+              ] # $pdi.[
+                {
+                  "identifier" : "Part Damage Cause " & (
+                    $pdi + 1
+                  ),
+                  "sections" : [
+                    {
+                      "activity" : $wo.woOperations[$i
+                      ].activity,
+                      "identifier" : "SEC_PartsDamageCause",
+                      "fields" : [$pd.dlCodegrp ? {
+                          "identifier" : "PDC_ObjectGroup",
+                          "value" : 
+                              $wo.notificationdetails.notificationHeader.catprofile&'_'&$pd.dlCatTyp&'_'&$pd.dlCodegrp
+                        }, $pd.dlCode ? {
+                          "identifier" : "PDC_Object",
+                          "value" : $pd.dlCatTyp & '_' & $pd.dlCodegrp & '_' & 
+                              $pd.dlCode
+                        }, $pd.dCodegrp ? {
+                          "identifier" : "PDC_DamageGroup",
+                          "value" : 
+                              $wo.notificationdetails.notificationHeader.catprofile&'_'&$pd.dCatTyp&'_'&$pd.dCodegrp
+                        }, $pd.dCode ? {
+                          "identifier" : "PDC_Damage",
+                          "value" : $pd.dCatTyp & '_' & $pd.dCodegrp & '_' & 
+                              $pd.dCode
+                        }, $pd.descript ? {
+                          "identifier" : "PDC_Text",
+                          "value" : $pd.descript
+                        }, $wo.notificationdetails.notificationCause[notifNo = $pd
+                              .notifNo
+                        ][0
+                        ].causeCodegrp ? {
+                          "identifier" : "PDC_CauseGroup",
+                          "value" : 
+                                $wo.notificationdetails.notificationHeader.catprofile&'_'&$wo.notificationdetails.notificationCause[notifNo=$pd.notifNo
+                          ][0
+                          ].causeCatTyp & '_' & 
+                                $wo.notificationdetails.notificationCause[notifNo =$pd.notifNo
+                          ][0
+                          ].causeCodegrp
+                        }, $wo.notificationdetails.notificationCause[notifNo = $pd
+                              .notifNo
+                        ][0
+                        ].causeCode ? {
+                          "identifier" : "PDC_Cause",
+                          "value" : 
+                                $wo.notificationdetails.notificationCause[notifNo=$pd.notifNo
+                          ][0
+                          ].causeCatTyp & '_' & 
+                                $wo.notificationdetails.notificationCause[notifNo =$pd.notifNo
+                          ][0
+                          ].causeCodegrp & '_' & 
+                                $wo.notificationdetails.notificationCause[notifNo =$pd.notifNo
+                          ][0
+                          ].causeCode
+                        }, $wo.notificationdetails.notificationCause[notifNo = $pd
+                              .notifNo
+                        ][0
+                        ].causetext ? {
+                          "identifier" : "PDC_CauseText",
+                          "value" : 
+                                $wo.notificationdetails.notificationCause[notifNo=$pd.notifNo
+                          ][0
+                          ].causetext
+                        }, $wo.notificationdetails.notificationActivities[notifNo
+                              = $pd.notifNo
+                        ][0
+                        ].actCodegrp ? {
+                          "identifier" : "PDC_ActivityGroup",
+                          "value" : 
+                                $wo.notificationdetails.notificationHeader.catprofile&'_'&$wo.notificationdetails.notificationActivities[notifNo=$pd.notifNo
+                          ][0
+                          ].actCatTyp & '_' & 
+                                $wo.notificationdetails.notificationActivities[notifNo=$pd.notifNo
+                          ][0
+                          ].actCodegrp
+                        }, $wo.notificationdetails.notificationActivities[notifNo
+                              = $pd.notifNo
+                        ][0
+                        ].actCode ? {
+                          "identifier" : "PDC_Activity",
+                          "value" : 
+                                $wo.notificationdetails.notificationActivities[notifNo=$pd.notifNo
+                          ][0
+                          ].actCatTyp & '_' & 
+                                $wo.notificationdetails.notificationActivities[notifNo=$pd.notifNo
+                          ][0
+                          ].actCodegrp & '_' & 
+                                $wo.notificationdetails.notificationActivities[notifNo=$pd.notifNo
+                          ][0
+                          ].actCode
+                        }, $wo.notificationdetails.notificationActivities[notifNo
+                              = $pd.notifNo
+                        ][0
+                        ].acttext ? {
+                          "identifier" : "PDC_ActivityText",
+                          "value" : 
+                                $wo.notificationdetails.notificationActivities[notifNo=$pd.notifNo
+                          ][0
+                          ].acttext
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  }
