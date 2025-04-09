@@ -717,7 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let linesOutput = [];
         let currentLine = '';
         let indentLevel = 0;
-        let contextStack = []; // Track context for comma handling: 'object', 'array', 'paren'
+        let contextStack = []; // Track context: 'object', 'array', 'paren', 'functionArgs'
         let lastTokenWasNewline = true; // Start assuming a newline
 
         function getCurrentIndent() {
@@ -764,10 +764,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // --- Pre-token Newlines/Indentation ---
             let needsNewlineBefore = false;
             if (token === '}' || token === ']' || token === ')') {
+                // Check context *before* popping for function args rule
+                let aboutToPopContext = contextStack.length > 0 ? contextStack[contextStack.length - 1] : null;
                 indentLevel = Math.max(0, indentLevel - 1); // Decrease indent level *before* placing the token
                 const opening = token === '}' ? '{' : (token === ']' ? '[' : '(');
                 if (prevToken !== opening) { // Add newline before closing unless empty {} [] ()
-                    needsNewlineBefore = true;
+                    // Exception: No newline before ) in function args
+                    if (!(token === ')' && aboutToPopContext === 'functionArgs')) {
+                        needsNewlineBefore = true;
+                    }
                 }
             } else if (token === '~>') {
                  needsNewlineBefore = true;
@@ -788,6 +793,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let needsSpaceBefore = false;
             if (currentLine.length > 0 && !currentLine.endsWith(getCurrentIndent())) { // Only add space if not start of line/indent
                  const lastChar = currentLine.slice(-1);
+                 const lastNonSpaceChar = currentLine.trimEnd().slice(-1); // Get last *actual* character
                  needsSpaceBefore = true; // Default to adding space, then remove exceptions
 
                  // Exceptions: No space BEFORE these tokens
@@ -795,12 +801,16 @@ document.addEventListener('DOMContentLoaded', function() {
                      needsSpaceBefore = false;
                  }
                  // Exceptions: No space AFTER these tokens
-                 if (['(', '[', '{', '.', '$', '$$'].includes(lastChar)) {
+                 if (['(', '[', '{', '.', '$', '$$'].includes(lastNonSpaceChar)) {
                      needsSpaceBefore = false;
                  }
                  // Special cases for function calls and predicates
                  if (token === '(' && /^[a-zA-Z_][w$]*$/.test(prevToken)) needsSpaceBefore = false; // Function call
                  if (token === '[' && /[w$)\]]$/.test(prevToken)) needsSpaceBefore = false; // Predicate/Index
+                 // Exception: No space if last char was already a space (added explicitly)
+                 if (lastChar === ' ') {
+                     needsSpaceBefore = false;
+                 }
             }
 
             // Append the token
@@ -811,38 +821,58 @@ document.addEventListener('DOMContentLoaded', function() {
             let needsSpaceAfter = false;
 
             if (token === '{' || token === '[' || token === '(') {
+                let pushedContext = 'paren'; // Default
                 indentLevel++; // Increase indent level *after* placing the token
-                if (token === '{') contextStack.push('object');
-                else if (token === '[') contextStack.push('array');
-                else contextStack.push('paren');
+                if (token === '{') {
+                    pushedContext = 'object';
+                    contextStack.push(pushedContext);
+                } else if (token === '[') {
+                     pushedContext = 'array';
+                     contextStack.push(pushedContext);
+                } else { // token === '('
+                    // Check if it's a function call
+                    if (prevToken === 'function' || prevToken === 'lambda') {
+                        pushedContext = 'functionArgs';
+                        contextStack.push(pushedContext);
+                    } else {
+                        pushedContext = 'paren';
+                        contextStack.push(pushedContext);
+                    }
+                }
 
                 const closing = token === '}' ? '}' : (token === ']' ? ']' : ')');
                 if (nextToken !== closing) { // Add newline after opening unless empty {} [] ()
-                    needsNewlineAfter = true;
+                    // Exception: No newline after ( in function args
+                    if (!(token === '(' && pushedContext === 'functionArgs')) {
+                        needsNewlineAfter = true;
+                    }
                 }
             } else if (token === '}' || token === ']' || token === ')') {
                  contextStack.pop();
-                 // Maybe newline after closing? Let subsequent token rules handle it (e.g. newline before ~>)
+                 // Newline rules are handled *before* the closing token
             } else if (token === ',') {
                  if (currentContext === 'object' || currentContext === 'array') {
                      needsNewlineAfter = true;
                  } else {
-                     needsSpaceAfter = true; // Space after comma in function args etc.
-                 }
-            } else if (['and', 'or', ':=', '=', '!=', '<', '<=', '>', ' >=', '+', '-', '*', '/', '?', ':', '~>'].includes(token)) {
-                // Most operators need space after (unless handled by newline)
-                // Special case: : inside object handled below
-                if (!(token === ':' && currentContext === 'object')) {
-                     needsSpaceAfter = true;
-                }
-            } else if (['function', 'lambda', 'if', 'then', 'else'].includes(token)) {
-                 needsSpaceAfter = true;
-                 // Exception: No space after function/lambda if followed by (
-                 if ((token === 'function' || token === 'lambda') && nextToken === '(') {
-                     needsSpaceAfter = false;
+                     // Explicitly add space after comma if no newline (e.g., function args)
+                     currentLine += ' ';
                  }
             } else if (token === ':' && currentContext === 'object') {
-                 needsSpaceAfter = true; // Space after colon in object properties
+                 // Explicitly add space ONLY after colon (before is handled by needsSpaceBefore)
+                 currentLine += ' ';
+            }
+
+            // Add space after most operators and keywords if not followed by a newline
+            else if (['and', 'or', ':=', '=', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '?', '~>'].includes(token)) {
+                // Add space after operator if not followed by newline
+                if (!needsNewlineAfter) {
+                    currentLine += ' ';
+                }
+            } else if (['function', 'lambda', 'if', 'then', 'else'].includes(token)) {
+                // Add space after keyword unless it's function/lambda followed by ( OR followed by newline
+                if (!needsNewlineAfter && !((token === 'function' || token === 'lambda') && nextToken === '(') ) {
+                    currentLine += ' ';
+                }
             }
 
             // Apply space/newline *after* token
