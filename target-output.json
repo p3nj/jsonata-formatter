@@ -1,0 +1,104 @@
+{
+    "batch": [
+      model[
+        $not(flocDetails.flocDetails.lvorm = "X")
+      ].(
+        {
+          "pointId": flocDetails.flocDetails.tplnr,
+          "pointName": flocDetails.flocDetails.pltxt,
+          "assignmentPointType": $$.properties.assignmentPointType,
+          "subSiteId": $$.properties.subsiteId,
+          "coordinatesString": "POINT (0 0)",
+          "attributeValues": [
+            {
+              "attributeName": "SAP Functional Location",
+              "attributeValue": flocDetails.flocDetails.tplnr,
+              "dataType": "varchar"
+            },
+            flocDetails.flocDetails.swerk and flocDetails.mainWorkCenter ? {
+              "attributeName": "Main Work Center",
+              "attributeValue": flocDetails.flocDetails.swerk & "/" & flocDetails.mainWorkCenter,
+              "dataType": "varchar"
+            },
+            flocDetails.flocDetails.ingrp and flocDetails.flocDetails.iwerk ? {
+              "attributeName": "Planner Group",
+              "attributeValue": flocDetails.flocDetails.iwerk & "/" & flocDetails.flocDetails.ingrp,
+              "dataType": "varchar"
+            },
+            flocDetails.flocDetails.rbnr ? {
+              "attributeName": "Catalogue Profile",
+              "attributeValue": flocDetails.flocDetails.rbnr,
+              "dataType": "varchar"
+            },
+            flocDetails.flocDetails.eqart ? {
+              "attributeName": "Object Type",
+              "attributeValue": flocDetails.flocDetails.eqart,
+              "dataType": "varchar"
+            },
+            flocDetails.flocDetails.zzAssetClass ? {
+              "attributeName": "Class",
+              "attributeValue": flocDetails.flocDetails.zzAssetClass,
+              "dataType": "varchar"
+            }
+          ] ~> $append(
+            $contains(flocDetails.flocDetails.tplnr, "-") ? [
+              {
+                "attributeName": "Parent Floc",
+                "attributeValue": $replace(flocDetails.flocDetails.tplnr, /-[^- ]+$/, ""),
+                "dataType": "varchar"
+              }
+            ] : []
+          ) ~> $append(
+            flocPermits.permitDescription ? {
+              "attributeName": "Permits",
+              "attributeValue": flocPermits.permitDescription,
+              "dataType": "varchar"
+            }
+          ) ~> $append(
+            flocLinearData ? [
+              flocLinearData.startPoint ? {
+                "attributeName": "Start Point",
+                "attributeValue": $string(flocLinearData.startPoint),
+                "dataType": "varchar"
+              },
+              flocLinearData.endPoint ? {
+                "attributeName": "End Point",
+                "attributeValue": $string(flocLinearData.endPoint),
+                "dataType": "varchar"
+              },
+              flocLinearData.linearLength ? {
+                "attributeName": "Length",
+                "attributeValue": $string(flocLinearData.linearLength),
+                "dataType": "varchar"
+              },
+              flocLinearData.lrpid ? {
+                "attributeName": "LRP",
+                "attributeValue": flocLinearData.lrpid,
+                "dataType": "varchar"
+              }
+            ] : []
+          ) ~> $append(
+            $filter(
+              $map(flocCharacteristics, function($char) {
+                /* Check for match and create attribute object in one step */
+                $filter(
+                  $$.properties.obzCharacteristics,
+                  function($obz) {
+                    $lowercase($obz.Column1) = $lowercase($char.charDescription)
+                  }
+                ) ? {
+                  "attributeName": $char.charDescription,
+                  "attributeValue": $char.charValue,
+                  "dataType": "varchar"
+                } : null
+              }),
+              function($item) {
+                $item != null
+              }
+            )
+          )
+        }
+      )
+    ],
+    "allowInvalidParents": true
+  }

@@ -719,6 +719,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let indentLevel = 0;
         let contextStack = []; // Track context: 'object', 'array', 'paren', 'functionArgs', 'builtinFuncArgs'
         let lastTokenWasNewline = true; // Start assuming a newline
+        let inPredicate = false; // Track if inside a predicate bracket
 
         function getCurrentIndent() {
             return indentChar.repeat(indentLevel);
@@ -769,10 +770,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 indentLevel = Math.max(0, indentLevel - 1); // Decrease indent level *before* placing the token
                 const opening = token === '}' ? '{' : (token === ']' ? '[' : '(');
                 if (prevToken !== opening) { // Add newline before closing unless empty {} [] ()
-                    // Exception: No newline before ) in function args OR built-in function args
-                    if (!(token === ')' && (aboutToPopContext === 'functionArgs' || aboutToPopContext === 'builtinFuncArgs'))) {
+                    // Exception: No newline before ) in function args OR built-in function args OR predicate brackets
+                    if (!( (token === ')' && (aboutToPopContext === 'functionArgs' || aboutToPopContext === 'builtinFuncArgs')) ||
+                           (token === ']' && aboutToPopContext === 'predicate') )) {
                         needsNewlineBefore = true;
                     }
+                }
+                // If closing a predicate, reset the flag
+                if (token === ']' && aboutToPopContext === 'predicate') {
+                    inPredicate = false;
                 }
             } else if (token === '~>') {
                  needsNewlineBefore = true;
@@ -815,6 +821,11 @@ document.addEventListener('DOMContentLoaded', function() {
                  if (lastChar === ' ') {
                      needsSpaceBefore = false;
                  }
+
+                 // *** NEW CHECK: No space BEFORE operators inside predicates ***
+                 if (['=', '!=', '<', '<=', '>', '>=', ':='].includes(token) && currentContext === 'predicate') {
+                     needsSpaceBefore = false;
+                 }
             }
 
             // Append the token
@@ -831,7 +842,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     pushedContext = 'object';
                     contextStack.push(pushedContext);
                 } else if (token === '[') {
-                     pushedContext = 'array';
+                     // Check if it's a predicate: follows identifier, variable, ), or ]
+                     const isPredicateCandidate = /[a-zA-Z_][w$]*$/.test(prevToken) || /^[$\w\)\]]$/.test(prevToken.trim().slice(-1));
+                     if (isPredicateCandidate) {
+                         pushedContext = 'predicate';
+                         inPredicate = true; // Set predicate flag
+                     } else {
+                         pushedContext = 'array';
+                     }
                      contextStack.push(pushedContext);
                 } else { // token === '('
                     // Check if it's a function call
@@ -841,7 +859,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else if (prevToken === 'function' || prevToken === 'lambda') { // Check for user function
                         pushedContext = 'functionArgs';
                         contextStack.push(pushedContext);
-                } else {
+                    // Check if it's a method call foo(...)
+                    } else if (/[a-zA-Z_][w$]*$/.test(prevToken)) {
+                        pushedContext = 'functionArgs'; // Treat method calls like functions for args
+                        contextStack.push(pushedContext);
+                    } else {
                         pushedContext = 'paren';
                         contextStack.push(pushedContext);
                     }
@@ -850,28 +872,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 const closing = token === '}' ? '}' : (token === ']' ? ']' : ')');
                 if (nextToken !== closing) { // Add newline after opening unless empty {} [] ()
                     // Exception: No newline after ( in function args OR built-in function args
-                    if (!(token === '(' && (pushedContext === 'functionArgs' || pushedContext === 'builtinFuncArgs'))) {
+                    // Exception: No newline after [ in predicate context
+                    if (!( (token === '(' && (pushedContext === 'functionArgs' || pushedContext === 'builtinFuncArgs')) ||
+                           (token === '[' && pushedContext === 'predicate') )) {
                         needsNewlineAfter = true;
                     }
                 }
             } else if (token === '}' || token === ']' || token === ')') {
                  contextStack.pop();
+                 // Reset predicate flag if leaving predicate context specifically
+                 if (token === ']' && contextStack.length > 0 && contextStack[contextStack.length - 1] === 'predicate') {
+                      // This logic might be redundant with the pre-token check, keep simplified
+                 } else if (token === ']') {
+                     // If we just closed a bracket, assume we are no longer in a predicate
+                     // This is a simplification, nested predicates might need more robust tracking
+                     inPredicate = false;
+                 }
                  // Newline rules are handled *before* the closing token
             } else if (token === ',') {
-                 if (currentContext === 'object' || currentContext === 'array') {
+                 if (currentContext === 'object' || (currentContext === 'array' && !inPredicate)) { // Only newline in non-predicate arrays
                      needsNewlineAfter = true;
                  } else {
-                     // Explicitly add space after comma if no newline (e.g., function args)
+                     // Explicitly add space after comma if no newline (e.g., function args, predicates)
                      currentLine += ' ';
                  }
             } else if (token === ':' && currentContext === 'object') {
                  // Explicitly add space ONLY after colon (before is handled by needsSpaceBefore)
                  currentLine += ' ';
+            } else if (token === ';' && currentContext === 'paren') {
+                // Add newline after semicolon in parenthesized variable assignment blocks
+                needsNewlineAfter = true;
             }
             // Check for operators needing space after
             else if (['and', 'or', ':=', '=', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '?', '~>'].includes(token)) {
                 // Exclude single-char symbols like @, # from getting automatic space after
-                if (!needsNewlineAfter && !(token === '-' && /^d/.test(nextToken)) ) {
+                // *** NEW CHECK: No space AFTER operators inside predicates ***
+                if (!needsNewlineAfter && !(token === '-' && /^d/.test(nextToken)) && currentContext !== 'predicate' ) {
                     currentLine += ' ';
                 }
             } else if (token === '@' || token === '#') {
@@ -893,18 +929,6 @@ document.addEventListener('DOMContentLoaded', function() {
                  // Avoid adding space if next token doesn't want one before it
                  if (!['.', ',', ';', ')', ']', '}', '(', '['].includes(nextToken)) {
                     currentLine += ' ';
-                 }
-            }
-
-            // --- Fallback Line Length Check ---
-            if (!lastTokenWasNewline && !needsNewlineAfter && currentLine.length > options.maxLineLength && currentLine.includes(' ')) {
-                 let breakPos = currentLine.lastIndexOf(' ', options.maxLineLength);
-                 let indentStr = getCurrentIndent(); // Use current indent level for check
-                 if (breakPos > indentStr.length) {
-                    // Simple break at last space for fallback
-                    linesOutput.push(currentLine.substring(0, breakPos)); // Push the first part
-                    currentLine = indentChar.repeat(indentLevel + 1) + currentLine.substring(breakPos + 1).trimStart(); // Start new line indented
-                    lastTokenWasNewline = false; // Continue on the new line
                  }
             }
         }
