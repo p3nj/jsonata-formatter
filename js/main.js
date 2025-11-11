@@ -35,7 +35,51 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     let inputEditor, outputEditor;
-    
+
+    // Example expressions for the example buttons
+    const examples = {
+        simple: `Account.Order.Product.(
+  $productName := Product.Name;
+  $price := Product.Price;
+  {
+    "name": $productName,
+    "price": $price,
+    "total": $price * Quantity
+  }
+)`,
+        complex: `{
+  "orders": Account.Order.{
+    "id": OrderID,
+    "customer": $uppercase(Customer.Name),
+    "items": Product.(
+      $item := $;
+      {
+        "name": Description,
+        "price": Price,
+        "quantity": Quantity,
+        "subtotal": Price * Quantity
+      }
+    ),
+    "total": $sum(Product.(Price * Quantity))
+  },
+  "summary": {
+    "totalOrders": $count(Account.Order),
+    "grandTotal": $sum(Account.Order.Product.(Price * Quantity))
+  }
+}`,
+        function: `(
+  $square := function($x) { $x * $x };
+  $isEven := function($n) { $n % 2 = 0 };
+
+  Account.Order.Product[Price > 10].{
+    "name": Description,
+    "price": Price,
+    "priceSquared": $square(Price),
+    "isEvenPrice": $isEven(Price)
+  }
+)`
+    };
+
     // First, ensure JSONata is loaded
     loadJSONata()
         .then(() => {
@@ -348,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Settings button not found');
         }
         
-        const closeBtn = document.querySelector('.close');
+        const closeBtn = modal.querySelector('.close');
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
                 console.log('Close button clicked');
