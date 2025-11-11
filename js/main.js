@@ -742,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const defaultOptions = {
             indentSize: 2,
             maxLineLength: 80, // Used as a fallback
-            bracesOnNewLine: false // Not used in this simplified logic
+            bracesOnNewLine: false
         };
         options = { ...defaultOptions, ...options };
         const indentChar = ' '.repeat(options.indentSize);
@@ -808,6 +808,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // --- Pre-token Newlines/Indentation ---
             let needsNewlineBefore = false;
+
+            // Handle bracesOnNewLine option for opening braces
+            if (token === '{' && options.bracesOnNewLine) {
+                // Put opening brace on new line if option is enabled
+                // But not if we're at the start of the expression (prevToken is empty)
+                if (prevToken && !lastTokenWasNewline && currentLine.trim()) {
+                    needsNewlineBefore = true;
+                }
+            }
+
             if (token === '}' || token === ']' || token === ')') {
                 // Check context *before* popping for function args rule
                 let aboutToPopContext = contextStack.length > 0 ? contextStack[contextStack.length - 1] : null;
