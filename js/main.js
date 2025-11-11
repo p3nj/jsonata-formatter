@@ -750,7 +750,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // ============================================================================
         // TOKENIZATION - Extract all meaningful tokens from the expression
         // ============================================================================
-        const tokenRegex = /(\/\*[\s\S]*?\*\/)|(\/\/.*$)|(\/(?:\\.|[^\\\/])+\/[gimyus]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\$\$?\w+)|\b(true|false|null|and|or|in|function|lambda|if|then|else)\b|(~>|:=|!=|<=|>=|&&|\|\||\.\.)|([{}[\]();,?.:@#]|[!=+\-*/<>%&|])|(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\w+)/gm;
+        const tokenRegex = /(\/\*[\s\S]*?\*\/)|(\/\/.*$)|(\/(?:\\.|[^\\\/])+\/[gimyus]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\$\$?\w*)|\b(true|false|null|and|or|in|function|lambda|if|then|else)\b|(~>|:=|!=|<=|>=|&&|\|\||\.\.)|([{}[\]();,?.:@#]|[!=+\-*/<>%&|])|(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\w+)/gm;
 
         const tokens = [];
         let match;
@@ -922,8 +922,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (token === '{') {
                     contextType = 'object';
-                    // Handle bracesOnNewLine option
-                    if (options.bracesOnNewLine && prev && lineBuffer.length > 0) {
+                    // Handle bracesOnNewLine option (but not for .{ or : { sequences)
+                    if (options.bracesOnNewLine && prev && prev !== '.' && prev !== ':' && lineBuffer.length > 0) {
                         newline();
                     }
                 } else if (token === '[') {
@@ -939,23 +939,28 @@ document.addEventListener('DOMContentLoaded', function() {
                         contextType = prev === 'function' || prev === 'lambda' ? 'functionArgs' : 'builtinFuncArgs';
                     } else if (isIdentifier(prev)) {
                         contextType = 'functionArgs';
+                    } else if (prev === '.') {
+                        // .( is a map/transform - treat like a predicate (keep inline)
+                        contextType = 'predicate';
                     }
                 }
-
-                pushContext(contextType);
 
                 // Add space before if needed
                 if (needsSpaceBefore(token, prev, context)) space();
 
                 write(token);
+
+                pushContext(contextType);
                 level++;
 
                 // Decide if we need a newline after opening
                 const isEmpty = next === matchingClose[token];
+                const inInlineContext = isInContext('functionArgs', 'builtinFuncArgs', 'predicate');
                 const keepInline = isEmpty ||
                                    contextType === 'functionArgs' ||
                                    contextType === 'builtinFuncArgs' ||
-                                   contextType === 'predicate';
+                                   contextType === 'predicate' ||
+                                   inInlineContext; // Keep nested expressions inline when already in inline context
 
                 if (!keepInline) {
                     newline();
